@@ -7,7 +7,7 @@
     "type": "git",
     "url": "git+https://github.com/red-cup-engineering/javascript-node-code-fabrication-services-section.git"
   },
-  "license": "UNLICENSED",
+  "license": "MIT",
   "exports": {
     "./transform-json-schema-to-typescript": "./scripts/transform-json-schema-to-typescript.mjs"
   },
@@ -27,5 +27,9 @@
   ],
   "dependencies": {
     "@red-cup-engineering/signcell": "0.4.2"
+  },
+  "funding": {
+    "type": "individual",
+    "url": "https://github.com/561-group/.github/blob/main/TIPS.md"
   }
 }
