@@ -124,8 +124,9 @@ test("boolean true and false remain legitimate referenced JSON Schemas", () => {
   for (const [value, declared] of [[true, "unknown"], [false, "never"]]) {
     const input = design("#/$defs/boolean-schema");
     input.schema.$defs = { "boolean-schema": value };
+    // Type declarations expose the projected alias; JS-only output has none.
     const result = renderJsonSchemaModule([input], {
-      format: "javascript", runtimeBinding,
+      format: "typescript", runtimeBinding,
     });
     assert.match(result, new RegExp('"evidence": ' + declared + ';', "u"));
   }
