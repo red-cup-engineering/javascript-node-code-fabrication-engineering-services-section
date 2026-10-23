@@ -86,6 +86,56 @@ function atPointer(schema, fragment) {
   }
   return value;
 }
+/**
+ * An executable generated schema binding may not silently weaken a missing
+ * referenced specification to an unconstrained type. Walk only JSON Schema
+ * assertion locations: a $ref inside const, default, or examples is data.
+ *
+ * This is a source-closure check, not proof that the referenced schemas are
+ * institutionally authorized or that generated TypeScript admits all values.
+ */
+function assertCompleteRuntimeReferences(schema, references) {
+  const seen = new WeakSet();
+  const single = [
+    "additionalItems", "additionalProperties", "contains", "contentSchema",
+    "else", "if", "items", "not", "propertyNames", "then",
+    "unevaluatedItems", "unevaluatedProperties",
+  ];
+  const arrays = ["allOf", "anyOf", "oneOf", "prefixItems"];
+  const maps = [
+    "$defs", "definitions", "dependentSchemas", "dependencies",
+    "patternProperties", "properties",
+  ];
+  const visit = (value, root, inheritedBase) => {
+    if (!isSchema(value) || seen.has(value)) return;
+    seen.add(value);
+    const base = resolvedBase(value, inheritedBase);
+    if (typeof value.$ref === "string") {
+      const resolved = resolveReference(value.$ref, root, references, base);
+      const target = resolved === undefined
+        ? undefined
+        : atPointer(resolved.schema, resolved.fragment);
+      // A pointer to an existing scalar, array or null is not a valid schema.
+      // JSON Schema's two Boolean forms remain legitimate referenced targets.
+      if (target === undefined || (target !== true && target !== false && !isSchema(target)))
+        throw new TypeError("unresolved runtime JSON Schema reference: " + value.$ref +
+          (target === undefined ? "" : " (target is not a schema)"));
+      visit(target, resolved.schema, resolvedBase(resolved.schema));
+    }
+    for (const key of single) visit(value[key], root, base);
+    for (const key of arrays) {
+      if (Array.isArray(value[key])) for (const item of value[key]) visit(item, root, base);
+    }
+    for (const key of maps) {
+      if (isSchema(value[key]))
+        for (const item of Object.values(value[key])) visit(item, root, base);
+    }
+    if (Array.isArray(value.items))
+      for (const item of value.items) visit(item, root, base);
+  };
+  visit(schema, schema, resolvedBase(schema));
+}
+
 function renderSchema(schema, root, references = [], inheritedBase = resolvedBase(root), active = new Set()) {
   if (schema === true) return "unknown";
   if (schema === false) return "never";
@@ -188,6 +238,12 @@ export function renderJsonSchemaModule(entries, options = {}) {
     if (runtimeName !== undefined && runtimeBinding === undefined) throw new TypeError("runtimeName requires runtimeBinding");
     return { exportName, typeName, schema: entry.schema, runtimeName, aliases, internal: entry.internal === true };
   }).sort((left, right) => left.exportName.localeCompare(right.exportName));
+  // Runtime generation must close every source reference; declarations alone
+  // retain their explicitly lossy TypeScript projection for legacy callers.
+  for (const entry of ordered) {
+    if (entry.runtimeName !== undefined)
+      assertCompleteRuntimeReferences(entry.schema, ordered);
+  }
   const runtimeReferences = (entry) => {
     const found = new Set();
     const visitedEntries = new Set();
