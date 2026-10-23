@@ -115,8 +115,11 @@ function assertCompleteRuntimeReferences(schema, references) {
       const target = resolved === undefined
         ? undefined
         : atPointer(resolved.schema, resolved.fragment);
-      if (target === undefined)
-        throw new TypeError("unresolved runtime JSON Schema reference: " + value.$ref);
+      // A pointer to an existing scalar, array or null is not a valid schema.
+      // JSON Schema's two Boolean forms remain legitimate referenced targets.
+      if (target === undefined || (target !== true && target !== false && !isSchema(target)))
+        throw new TypeError("unresolved runtime JSON Schema reference: " + value.$ref +
+          (target === undefined ? "" : " (target is not a schema)"));
       visit(target, resolved.schema, resolvedBase(resolved.schema));
     }
     for (const key of single) visit(value[key], root, base);
