@@ -109,3 +109,24 @@ test("changed design deterministically regenerates different executable source",
     format: "javascript", runtimeBinding,
   }));
 });
+
+test("runtime generation rejects references to present but nonschema source values", () => {
+  for (const malformed of [null, 17, "not a schema", [], ["object"]]) {
+    const input = design("#/$defs/not-a-schema");
+    input.schema.$defs = { "not-a-schema": malformed };
+    assert.throws(() => renderJsonSchemaModule([input], {
+      format: "javascript", runtimeBinding,
+    }), /unresolved runtime JSON Schema reference: .*target is not a schema/u);
+  }
+});
+
+test("boolean true and false remain legitimate referenced JSON Schemas", () => {
+  for (const [value, declared] of [[true, "unknown"], [false, "never"]]) {
+    const input = design("#/$defs/boolean-schema");
+    input.schema.$defs = { "boolean-schema": value };
+    const result = renderJsonSchemaModule([input], {
+      format: "javascript", runtimeBinding,
+    });
+    assert.match(result, new RegExp('"evidence": ' + declared + ';', "u"));
+  }
+});
