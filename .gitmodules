@@ -1,10 +1,10 @@
 [submodule "capability-cell-fabrication-services-section"]
 	path = services/capability-cell-fabrication-services-section
-	url = https://github.com/red-cup-engineering/capability-cell-fabrication-services-section.git
+	url = https://github.com/red-cup-engineering/capability-cell-fabrication-engineering-services-section.git
 	branch = main
 [submodule "jsnode-package-services-section"]
 	path = services/jsnode-package-services-section
-	url = https://github.com/red-cup-engineering/jsnode-package-services-section.git
+	url = https://github.com/red-cup-engineering/jsnode-package-engineering-services-section.git
 	branch = main
 [submodule "jsnode-package-scaffold-service"]
 	path = services/jsnode-package-scaffold-service
