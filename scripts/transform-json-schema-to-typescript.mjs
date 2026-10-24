@@ -292,7 +292,7 @@ export function renderJsonSchemaModule(entries, options = {}) {
       "  }",
       "  return value;",
       "};",
-    ].join("\\n") : undefined,
+    ].join("\n") : undefined,
     ...ordered.flatMap(({ exportName, typeName, schema, internal }) => [
       format === "javascript" ? undefined : transformJsonSchemaToTypescript(schema, { typeName, references: ordered }),
       format === "declaration"
