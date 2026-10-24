@@ -215,7 +215,17 @@ export function renderJsonSchemaModule(entries, options = {}) {
   if (runtimeBinding !== undefined && (!isSchema(runtimeBinding) || typeof runtimeBinding.from !== "string" || runtimeBinding.from === ""))
     throw new TypeError("runtimeBinding must name an import");
   if (runtimeBinding !== undefined) identifier(runtimeBinding.name, "runtimeBinding.name");
-  const names = new Set(runtimeBinding === undefined ? [] : [runtimeBinding.name]);
+  // A generated JavaScript schema must preserve nested source constraints. A
+  // shallow Object.freeze let an installed consumer rewrite conformance and
+  // authorization claims while leaving the outer schema deceptively frozen.
+  // This source-private emitted helper is shared by all generated JS entries.
+  const freezer = "__freezeGeneratedSchema";
+  if (format === "javascript" && runtimeBinding?.name === freezer)
+    throw new TypeError("runtimeBinding.name collides with generated schema freezer");
+  const names = new Set([
+    ...(runtimeBinding === undefined ? [] : [runtimeBinding.name]),
+    ...(format === "javascript" ? [freezer] : []),
+  ]);
   const typeNames = new Set();
   const ordered = [...entries].map((entry) => {
     if (!isSchema(entry) || !isSchema(entry.schema)) throw new TypeError("each entry must contain a schema object");
@@ -274,11 +284,25 @@ export function renderJsonSchemaModule(entries, options = {}) {
   return [
     "/** Generated from specifications/*.schema.json. Do not edit. */",
     runtimeBinding === undefined ? undefined : `import ${format === "declaration" ? "type " : ""}{ ${runtimeBinding.name} } from ${quoted(runtimeBinding.from)};`,
+    format === "javascript" ? [
+      "const __freezeGeneratedSchema = value => {",
+      "  if (value !== null && typeof value === \"object\") {",
+      "    for (const child of Object.values(value)) __freezeGeneratedSchema(child);",
+      "    Object.freeze(value);",
+      "  }",
+      "  return value;",
+      "};",
+    ].join("\\n") : undefined,
     ...ordered.flatMap(({ exportName, typeName, schema, internal }) => [
       format === "javascript" ? undefined : transformJsonSchemaToTypescript(schema, { typeName, references: ordered }),
       format === "declaration"
         ? `${internal ? "" : "export "}declare const ${exportName}: ${schemaLiteralType(schema)};`
-        : `${internal ? "const" : "export const"} ${exportName} = Object.freeze(${JSON.stringify(schema, null, 2)}${format === "typescript" ? " as const" : ""});`,
+        : format === "javascript"
+          // Parse strict JSON instead of embedding an object literal: properties
+          // named "__proto__" remain real own JSON members, not prototype setters.
+          // The emitted helper seals every nested schema, rule list and example.
+          ? `${internal ? "const" : "export const"} ${exportName} = __freezeGeneratedSchema(JSON.parse(${JSON.stringify(JSON.stringify(schema))}));`
+          : `${internal ? "const" : "export const"} ${exportName} = Object.freeze(${JSON.stringify(schema, null, 2)} as const);`,
       "",
     ]),
     ...ordered.map((entry) => entry.runtimeName === undefined ? undefined : format === "declaration"
