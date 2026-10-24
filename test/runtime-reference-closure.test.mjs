@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import {
   renderJsonSchemaModule, transformJsonSchemaToTypescript,
 } from "../scripts/transform-json-schema-to-typescript.mjs";
@@ -131,3 +132,87 @@ test("boolean true and false remain legitimate referenced JSON Schemas", () => {
     assert.match(result, new RegExp('"evidence": ' + declared + ';', "u"));
   }
 });
+
+test("generated native JavaScript keeps all nested source rules immutable",async()=>{
+  const schema={
+    type:"object",
+    required:["standing"],
+    properties:{
+      standing:{const:"unassessed"},
+      evidence:{type:"array",items:{type:"object",properties:{
+        verdict:{enum:["held","unknown","denied"]}
+      }}}
+    }
+  };
+  const output=renderJsonSchemaModule([
+    {exportName:"standingSchema",typeName:"Standing",schema}
+  ],{format:"javascript"});
+  const module=await import("data:text/javascript;base64,"+Buffer.from(output).toString("base64"));
+  const received=module.standingSchema;
+  assert.deepEqual(received,schema);
+  const refs=[received,received.required,received.properties,
+    received.properties.standing,received.properties.evidence,
+    received.properties.evidence.items,
+    received.properties.evidence.items.properties.verdict.enum];
+  assert.ok(refs.every(Object.isFrozen),"deeply immutable source, not one frozen outer wrapper");
+  assert.throws(()=>{received.properties.standing.const="certified";},TypeError);
+  assert.throws(()=>{received.properties.evidence.items.properties.verdict.enum.push("fabricated");},TypeError);
+  assert.equal(received.properties.standing.const,"unassessed");
+  assert.equal(output,renderJsonSchemaModule([
+    {exportName:"standingSchema",typeName:"Standing",schema}
+  ],{format:"javascript"}));
+});
+
+test("generated JS preserves every exact JSON source key, including __proto__, without prototype mutation",async()=>{
+  const schema=JSON.parse('{"__proto__":{"const":"source-data"},"properties":{"__proto__":{"type":"number"},"safe":{"type":"integer"}}}');
+  const output=renderJsonSchemaModule([{exportName:"safeSchema",typeName:"Safe",schema}],{format:"javascript"});
+  const runtime=await import("data:text/javascript;base64,"+Buffer.from(output).toString("base64"));
+  assert.deepEqual(runtime.safeSchema,schema);
+  assert.equal(Object.getPrototypeOf(runtime.safeSchema),Object.prototype);
+  assert.equal(Object.getPrototypeOf(runtime.safeSchema.properties),Object.prototype);
+  assert.equal(Object.hasOwn(runtime.safeSchema,"__proto__"),true);
+  assert.equal(Object.hasOwn(runtime.safeSchema.properties,"__proto__"),true);
+  assert.equal(Object.isFrozen(runtime.safeSchema.__proto__),true);
+  assert.equal(Object.isFrozen(runtime.safeSchema.properties.__proto__),true);
+  assert.throws(()=>{runtime.safeSchema.properties.__proto__.type="string";},TypeError);
+});
+
+test("one private code-generator helper is shared and cannot impersonate a declared export or import",async()=>{
+  const entries=[
+    {exportName:"firstSchema",typeName:"First",schema:{type:"object",properties:{x:{const:1}}}},
+    {exportName:"secondSchema",typeName:"Second",schema:{type:"object",properties:{y:{const:2}}}}
+  ];
+  const src=renderJsonSchemaModule(entries,{format:"javascript"});
+  assert.equal((src.match(/const __freezeGeneratedSchema =/gu)??[]).length,1);
+  const mod=await import("data:text/javascript;base64,"+Buffer.from(src).toString("base64"));
+  assert.ok(Object.isFrozen(mod.firstSchema.properties.x));
+  assert.ok(Object.isFrozen(mod.secondSchema.properties.y));
+  assert.throws(()=>renderJsonSchemaModule([
+    {exportName:"__freezeGeneratedSchema",typeName:"A",schema:{type:"object"}}
+  ],{format:"javascript"}),/duplicate generated JavaScript binding/u);
+  assert.throws(()=>renderJsonSchemaModule(entries,{format:"javascript",
+    runtimeBinding:{name:"__freezeGeneratedSchema",from:"./schema-type.mjs"}}),
+    /collides with generated schema freezer/u);
+});
+
+if(process.env.SPEC_ARCHITECTURE_SCHEMA_FILE){
+  test("real merged Specification candidate cannot acquire a manufactured conformance verdict",async()=>{
+    const schema=JSON.parse(readFileSync(process.env.SPEC_ARCHITECTURE_SCHEMA_FILE,"utf8"));
+    assert.equal(schema.properties.standard.properties.conformance.const,"unassessed");
+    assert.equal(schema.$schema,"https://json-schema.org/draft/2020-12/schema");
+    const code=renderJsonSchemaModule([{
+      exportName:"architectureDescriptionCandidateSchema",
+      typeName:"ArchitectureDescriptionCandidate",schema
+    }],{format:"javascript"});
+    const generated=await import("data:text/javascript;base64,"+Buffer.from(code).toString("base64"));
+    const value=generated.architectureDescriptionCandidateSchema;
+    assert.deepEqual(value,schema);
+    assert.equal(Object.isFrozen(value.properties.standard.properties.conformance),true);
+    assert.throws(()=>{value.properties.standard.properties.conformance.const="certified";},TypeError);
+    assert.equal(value.properties.standard.properties.conformance.const,"unassessed");
+    assert.equal(Object.isFrozen(value.$defs.refs.items),true);
+    assert.equal(Object.isFrozen(value.required),true);
+    assert.equal(Object.isFrozen(value.properties.system.properties.sourceIds.items),true);
+  });
+}
+
