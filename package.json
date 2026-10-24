@@ -1,5 +1,5 @@
 {
-  "name": "@red-cup-engineering/javascript-node-code-fabrication-engineering-services-section",
+  "name": "@red-cup-engineering/javascript-node-code-fabrication-services-section",
   "version": "0.1.2",
   "type": "module",
   "description": "Red Cup Engineering service section for javascript node code fabrication.",
@@ -16,7 +16,7 @@
     "check": "check-package-syntax"
   },
   "devDependencies": {
-    "@red-cup-engineering/jsnode-package-engineering-services-section": "0.2.4"
+    "@red-cup-engineering/jsnode-package-services-section": "0.2.4"
   },
   "files": [
     "scripts",
