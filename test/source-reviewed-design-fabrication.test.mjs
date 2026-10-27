@@ -2,13 +2,13 @@
 // HLD/LLD reader at one exact source cut. Synthetic records are unadmitted;
 // structurally received candidates are not Stage Proof or effectful Work.
 import test from 'node:test';
+import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const originalRoot = process.env.SPEC_ARCHITECTURE_SOURCE_DIR;
 const packed = process.env.CODE_PACKED_CONSUMER === '1';
-const readSource = kind => ({ kind, text: '' });
 
 async function providers() {
   assert.ok(originalRoot, 'original Specification checkout required for source receiving');
@@ -103,14 +103,30 @@ test('original HLD → LLD → generated runnable source-pinned schema types, wi
   // Fabricate actual executable SignCell runtime schema guards from the
   // original LLD's typed operation inputs/outputs, with an immutable original
   // candidate/source lineage. No operation bodies or Proof are fabricated.
+  // SignCell's incumbent executable schema reader requires stable $id/title/
+  // description. Derive defaults deterministically from the *entire* exact
+  // source/design candidate, never from a new clock or fabricated authority.
+  // Preserve any metadata explicitly authored in the LLD schema itself.
+  const candidateDigest = createHash('sha256')
+    .update(JSON.stringify(lowLevel), 'utf8').digest('hex');
+  const runtimeSchema = (operation, side) => ({
+    $id: 'https://schemas.example.test/unadmitted/' + candidateDigest + '/' +
+      operation.id + '/' + side,
+    title: 'Unadmitted ' + operation.id + ' ' + side,
+    description: 'Source-derived ' + side + ' contract for ' +
+      operation.module + '#' + operation.exportName +
+      '; semantic Proof and Work admission not received',
+    ...JSON.parse(side === 'input'
+      ? operation.inputSchemaJson : operation.outputSchemaJson),
+  });
   const entries = [
     { exportName: 'designSource', typeName: 'DesignSource',
       schema: { const: { highLevel, lowLevel } } },
     ...lowLevel.design.operations.flatMap((operation, i) => [
       { exportName: 'inputSchema' + i, typeName: 'Input' + i,
-        runtimeName: 'inputType' + i, schema: JSON.parse(operation.inputSchemaJson) },
+        runtimeName: 'inputType' + i, schema: runtimeSchema(operation, 'input') },
       { exportName: 'outputSchema' + i, typeName: 'Output' + i,
-        runtimeName: 'outputType' + i, schema: JSON.parse(operation.outputSchemaJson) },
+        runtimeName: 'outputType' + i, schema: runtimeSchema(operation, 'output') },
     ]),
   ];
   const binding = { name: 'defineSchemaType',
