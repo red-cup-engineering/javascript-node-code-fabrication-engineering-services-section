@@ -38,3 +38,9 @@ performs its source contract. Independent Proof, Work authorization, code
 effects, installed runtime behavior and beneficiary settlement remain
 separate receivers. The native test suite enforces this distinction rather
 than claiming that schema parsing settles the original Group Requirement.
+
+## Receive source-bound high-level / low-level design as generated Code
+
+The original Specification Engineering source at revision `5a98b8df9c87857e65c842e45bbadbe01da5dd53` now provides the source-preserving HLD/LLD plan and receiver, including per-clause Architecture model coverage. The existing Code maker's CI installs that exact original checkout, drives its public `planEngineeringDesign` and `receiveEngineeringDesign` operations at one synthetic, explicitly *unadmitted* source cut, and derives **real executable SignCell runtime input/output schema types** from the received LLD's authored JSON Schema fields using this package's incumbent `renderJsonSchemaModule`. It retains an immutable original HLD/LLD/source reference in the generated ESM module; identical source and design must emit identical bytes.
+
+The separate packed/npm-installed Code consumer exercises actual runtime positive and negative schema admission, stale Requirement ancestry, incomplete Architecture clause coverage and mismatched HLD→LLD model allocation. The Code producer derives validation contracts but **does not implement the authored operation body**, prove business semantics, authorize a source owner, or claim customer acceptance. Stage-Proof review of the exact source/design, admitted Work, native maker effects, host installation, actual beneficiary acceptance and settlement remain separately owned and unreceived. These automated tests are necessary **source-to-consumer qualification**, not the Engineering closure's final result.
