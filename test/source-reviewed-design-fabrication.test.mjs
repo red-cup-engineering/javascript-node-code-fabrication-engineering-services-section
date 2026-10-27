@@ -206,3 +206,61 @@ test('Code cannot receive partially modeled specification clauses as valid Desig
   assert.equal(complete.admitted, false);
   assert.equal(complete.proof, 'unreceived');
 });
+
+
+test('Code receives only byte-materializable LLD module paths from the current Specification source', {
+  skip: !originalRoot && 'requires exact original Specification checkout',
+}, async () => {
+  const p = await providers();
+  const sources = p.sourcesFixture();
+  const hldPlan = p.planEngineeringDesign({ stage: 'high-level', sources });
+  const highLevel = p.receiveEngineeringDesign({
+    stage: 'high-level', sources, plan: hldPlan,
+    deliveryText: JSON.stringify(highLevelDesign()),
+  });
+  assert.equal(highLevel.type, 'EngineeringDesignCandidate');
+  const lowSources = [...sources, { kind: 'high-level', text: JSON.stringify(highLevel) }];
+  const lowPlan = p.planEngineeringDesign({ stage: 'low-level', sources: lowSources });
+
+  // The actual upstream receiver—not a copied Code validation function—
+  // must refuse names that cannot retain original filesystem byte identity.
+  // Run these checks in both source tests and the separately installed package
+  // consumer before ever rendering generated Code from an invalid candidate.
+  const refusal = { type: 'EngineeringDesignDerivationRefusal', reason: 'invalid-design' };
+  for (const [name, module] of [
+    ['embedded NUL', 'src/op-' + String.fromCharCode(0) + '-a.mjs'],
+    ['unpaired high surrogate', 'src/op-' + String.fromCharCode(0xD800) + '-a.mjs'],
+    ['unpaired low surrogate', 'src/op-' + String.fromCharCode(0xDC00) + '-a.mjs'],
+  ]) {
+    const bad = lowLevelDesign();
+    bad.operations[0].module = module;
+    assert.deepEqual(p.receiveEngineeringDesign({
+      stage: 'low-level', sources: lowSources, plan: lowPlan,
+      deliveryText: JSON.stringify(bad),
+    }), refusal, name + ' must refuse before Code generation');
+  }
+
+  // A valid astral Unicode scalar is NOT refused as a supposed byte hazard.
+  // Preserve that exact authored path into the incumbent executable Code
+  // maker; do not normalize, replace or invent a path independently.
+  const valid = lowLevelDesign();
+  valid.operations[0].module = 'src/op-🧵-a.mjs';
+  const received = p.receiveEngineeringDesign({
+    stage: 'low-level', sources: lowSources, plan: lowPlan,
+    deliveryText: JSON.stringify(valid),
+  });
+  assert.equal(received.type, 'EngineeringDesignCandidate');
+  assert.equal(received.admitted, false);
+  assert.equal(received.proof, 'unreceived');
+  const emitted = p.renderJsonSchemaModule([
+    { exportName: 'modulePath', typeName: 'ModulePath',
+      schema: { const: received.design.operations[0].module } },
+  ], {
+    format: 'javascript',
+    runtimeBinding: { name: 'defineSchemaType',
+      from: import.meta.resolve('@red-cup-engineering/signcell/type-system/schema-type') },
+  });
+  const executable = await import('data:text/javascript;base64,' +
+    Buffer.from(emitted).toString('base64'));
+  assert.equal(executable.modulePath.const, 'src/op-🧵-a.mjs');
+});
