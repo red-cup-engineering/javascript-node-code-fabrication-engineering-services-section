@@ -265,3 +265,59 @@ test("annotation examples do not become false dynamic-reference constraints",()=
   });
   assert.match(raw,/\$dynamicRef/u,"literal-only schema still retains its authored bytes");
 });
+
+if (process.env.SPEC_ARCHITECTURE_SCHEMA_FILE) {
+  test("actual merged Requirement-cell -> Architecture design source generates immutable executable Code and typed carriers", async () => {
+    const schema = JSON.parse(readFileSync(process.env.SPEC_ARCHITECTURE_SCHEMA_FILE, "utf8"));
+    // These fields were received on the source owner's exact PR #5. The Code
+    // maker MUST take them from that original schema, not a second local copy.
+    const sourceConcern = schema.properties.concerns.items.properties;
+    assert.deepEqual(sourceConcern.requirementCellIds.items, { type: "string", minLength: 1 });
+    assert.equal(sourceConcern.requirementCellIds.minItems, 1);
+    assert.equal(sourceConcern.requirementCellIds.uniqueItems, true);
+    assert.equal(sourceConcern.specificationClauseIds.$ref, "#/$defs/refs");
+    assert.equal(schema.properties.standard.properties.conformance.const, "unassessed");
+
+    const entry = {
+      exportName: "architectureCandidateSchema",
+      typeName: "ArchitectureCandidate",
+      schema,
+    };
+    const javascript = renderJsonSchemaModule([entry], { format: "javascript" });
+    const declaration = renderJsonSchemaModule([entry], { format: "typescript" });
+    const generated = await import("data:text/javascript;base64," + Buffer.from(javascript).toString("base64"));
+    const output = generated.architectureCandidateSchema;
+    assert.deepEqual(output, schema, "generated runnable carrier retains all original source fields");
+    assert.deepEqual(output.properties.concerns.items.properties.requirementCellIds,
+      sourceConcern.requirementCellIds);
+    assert.deepEqual(output.properties.concerns.items.properties.specificationClauseIds,
+      sourceConcern.specificationClauseIds);
+    assert.equal(Object.isFrozen(output.properties.concerns.items.properties.requirementCellIds.items), true);
+    assert.equal(Object.isFrozen(output.properties.concerns.items.properties.specificationClauseIds), true);
+    assert.throws(() => { output.properties.concerns.items.properties.requirementCellIds.minItems = 0; }, TypeError);
+    assert.throws(() => { output.properties.standard.properties.conformance.const = "proved"; }, TypeError);
+    assert.match(declaration, /"requirementCellIds"\?: readonly string\[\]/u);
+    assert.match(declaration, /"specificationClauseIds"\?: refs/u);
+    assert.equal(javascript, renderJsonSchemaModule([entry], { format: "javascript" }),
+      "same original source produces exactly the same generated Code");
+    const obsolete = structuredClone(schema);
+    delete obsolete.properties.concerns.items.properties.requirementCellIds;
+    assert.notEqual(javascript, renderJsonSchemaModule([{ ...entry, schema: obsolete }],
+      { format: "javascript" }), "schema revision changes the fabricated source, not merely a document");
+  });
+
+  test("runtime Code derived from the real architecture source refuses an unqualified dynamic trace reference", () => {
+    const schema = JSON.parse(readFileSync(process.env.SPEC_ARCHITECTURE_SCHEMA_FILE, "utf8"));
+    const wrong = structuredClone(schema);
+    wrong.properties.concerns.items.properties.requirementCellIds.items = {
+      $dynamicRef: "#office-accepted",
+    };
+    assert.throws(() => renderJsonSchemaModule([{
+      exportName: "architectureCandidateSchema",
+      typeName: "ArchitectureCandidate",
+      runtimeName: "architectureType",
+      schema: wrong,
+    }], { format: "javascript", runtimeBinding }),
+    /dynamic runtime JSON Schema reference requires qualified dynamic-scope resolution/u);
+  });
+}
