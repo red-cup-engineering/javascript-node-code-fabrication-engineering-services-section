@@ -5,6 +5,7 @@ on:
     paths:
       - 'scripts/transform-json-schema-to-typescript.mjs'
       - 'test/runtime-reference-closure.test.mjs'
+      - 'test/source-reviewed-architecture-fabrication.test.mjs'
       - 'test/index.test.mjs'
       - 'package.json'
       - '.github/workflows/runtime-schema-reference-closure.yml'
@@ -20,7 +21,7 @@ permissions:
 jobs:
   qualified-reference-closure:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -28,26 +29,29 @@ jobs:
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: '24'
-      - name: Select actual merged traced Specification Architecture schema as the design-to-Code source
+      - name: Select the reviewed Specification-to-Architecture generator and original source schema
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: red-cup-engineering/specification-engineering-services-section
-          ref: be0bbaf62ada9ea1f4f4613f98c956382094e915
+          ref: b6189996c74e2211cac2d85d86b81116f313e360
           path: specification-source
           persist-credentials: false
       - name: Verify original schema origin and install the actual Code runtime consumer
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C specification-source rev-parse HEAD)" = "be0bbaf62ada9ea1f4f4613f98c956382094e915"
+          test "$(git -C specification-source rev-parse HEAD)" = "b6189996c74e2211cac2d85d86b81116f313e360"
           test "$(git hash-object specification-source/data/records/schema/architecture-description.schema.json)" = "978863fa30df43b9c207fdac0fef085f9a37407e"
           npm install --ignore-scripts --no-audit --no-fund --no-package-lock --registry=https://registry.561.group/
+          npm install --prefix specification-source --ignore-scripts --no-audit --no-fund --no-package-lock --registry=https://registry.561.group/
           node -e "const p=require('./node_modules/@red-cup-engineering/signcell/package.json');if(p.version!=='0.4.2')process.exit(1)"
       - name: Generate and test Code against original Requirement-traced Architecture schema
         env:
           SPEC_ARCHITECTURE_SCHEMA_FILE: ${{ github.workspace }}/specification-source/data/records/schema/architecture-description.schema.json
+          SPEC_ARCHITECTURE_SOURCE_DIR: ${{ github.workspace }}/specification-source
         run: |
           node --check scripts/transform-json-schema-to-typescript.mjs
           node --check test/index.test.mjs
           node --check test/runtime-reference-closure.test.mjs
-          node --test test/index.test.mjs test/runtime-reference-closure.test.mjs
+          node --check test/source-reviewed-architecture-fabrication.test.mjs
+          node --test test/index.test.mjs test/runtime-reference-closure.test.mjs test/source-reviewed-architecture-fabrication.test.mjs
