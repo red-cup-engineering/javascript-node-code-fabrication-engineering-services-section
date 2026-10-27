@@ -11,3 +11,30 @@ The Javascript Node Code Fabrication Services Section maintains knowledge and pr
 
 Its material is organized by artifact role under `content/`; specialized
 subdomains continue under `services/`.
+## Receive the original reviewed Specification/Architecture as Code source
+
+The existing JavaScript source-to-TypeScript/runtime fabricator is now exercised
+against the **actual original** Specification Engineering maker selected at
+its immutable mainline source revision. Native CI installs both the Code
+package and a separate original Specification source checkout, then performs:
+
+\`Requirement → independently interpreted Specification → author-reviewed
+Architecture candidate → source-bound Code schema and immutable JavaScript
+module → original source-revision impact\`.
+
+The original source modules, not copied local data formats, derive the
+Specification and Architecture. The Code maker's existing
+\`renderJsonSchemaModule\` produces the runnable ESM carrier. A native test
+imports that ESM and checks the exact original design, recursively immutable
+constraints, intentionally untraced beneficiary condition, changed-model
+regeneration, stable replay, and refusal of stale Requirement or forged
+architectural decision source. These are executable source/product assays,
+not a new code-generation engine or a parallel WorkCell store.
+
+The review still supplies actual architectural design choices; the generator
+does not invent them or assume the designer's authority. A generated schema
+carrier is neither an implemented customer workflow nor proof that code
+performs its source contract. Independent Proof, Work authorization, code
+effects, installed runtime behavior and beneficiary settlement remain
+separate receivers. The native test suite enforces this distinction rather
+than claiming that schema parsing settles the original Group Requirement.
