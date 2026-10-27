@@ -50,8 +50,14 @@ The separate packed/npm-installed Code consumer exercises actual runtime positiv
 The Code source and packed consumer now select the exact upstream Specification
 revision `b6377fe310bc17131bacb89c3500eb6597ba961f`, qualified by the original
 [Specification Engineering PR #13](https://github.com/red-cup-engineering/specification-engineering-services-section/pull/13)
-with independently verified source/build attestation. This **revision pin is
-not itself verification of that signature by the Code job**. The incumbent
+with independently verified source/build attestation. The Code CI now also
+reproduces the exact upstream npm archive (SHA-256
+`ca02fc9d2c358172ae05e3db924d59407055ed48eb5d09d7d11d193e6251542a`)
+at that pinned source, then **independently verifies its public Sigstore/SLSA v1
+attestation**, original signer workflow and source revision before exercising
+Code. A one-byte-modified package must be refused by that verifier. This is
+authenticated original build provenance, **not** independent semantic Stage
+Proof, production supply-chain conformance, publication or effect authorization. The incumbent
 source consumer must also preserve the merged LLD path guard: embedded NUL
 and unpaired UTF-16 surrogates refuse before Code generation, while a valid
 astral Unicode source path reaches the generated executable module unchanged.

@@ -46,6 +46,51 @@ jobs:
           npm install --ignore-scripts --no-audit --no-fund --no-package-lock --registry=https://registry.561.group/
           npm install --prefix specification-source --ignore-scripts --no-audit --no-fund --no-package-lock --registry=https://registry.561.group/
           node -e "const p=require('./node_modules/@red-cup-engineering/signcell/package.json');if(p.version!=='0.4.2')process.exit(1)"
+      - name: Independently authenticate the exact original Specification maker package
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/specification-attestation"
+          # Reproduce the original signed job's package at the already pinned
+          # upstream revision, not an unaudited mutable npm registry version.
+          (
+            cd specification-source
+            npm pack --ignore-scripts --silent               --pack-destination "$RUNNER_TEMP/specification-attestation" >/dev/null
+          )
+          shopt -s nullglob
+          archives=( "$RUNNER_TEMP"/specification-attestation/*.tgz )
+          test "${#archives[@]}" -eq 1
+          archive="${archives[0]}"
+          # Digest of upstream merged-main run 40576268741's real signed subject.
+          printf '%s  %s\n'             ca02fc9d2c358172ae05e3db924d59407055ed48eb5d09d7d11d193e6251542a             "$archive" | sha256sum --check --strict
+          # A Git checkout pin and checksum do not verify builder identity:
+          # demand the original public Sigstore/SLSA statement for these bytes,
+          # workflow and immutable source revision.
+          gh attestation verify "$archive"             --repo red-cup-engineering/specification-engineering-services-section             --signer-workflow red-cup-engineering/specification-engineering-services-section/.github/workflows/specification-native-receiving.yml             --source-digest b6377fe310bc17131bacb89c3500eb6597ba961f             --deny-self-hosted-runners             --format json > "$RUNNER_TEMP/specification-attestation/verified.json"
+          node --input-type=module - "$archive" "$RUNNER_TEMP/specification-attestation/verified.json" <<'NODE'
+          import assert from 'node:assert/strict';
+          import { createHash } from 'node:crypto';
+          import { readFileSync } from 'node:fs';
+          const [, , tarball, verificationFile] = process.argv;
+          const digest = createHash('sha256').update(readFileSync(tarball)).digest('hex');
+          const records = JSON.parse(readFileSync(verificationFile, 'utf8'));
+          assert.ok(Array.isArray(records) && records.length > 0, 'no independently verified statement');
+          assert.ok(records.some(row => {
+            const statement = row?.verificationResult?.statement;
+            return statement?.predicateType === 'https://slsa.dev/provenance/v1' &&
+              statement.subject?.some(subject => subject.digest?.sha256 === digest);
+          }), 'no signed SLSA v1 statement names the exact original artifact bytes');
+          console.log('Source-qualified upstream maker: exact checksum and independently verified Sigstore/SLSA v1 statement received.');
+          NODE
+          cp "$archive" "$RUNNER_TEMP/specification-attestation/tampered.tgz"
+          printf x >> "$RUNNER_TEMP/specification-attestation/tampered.tgz"
+          if gh attestation verify "$RUNNER_TEMP/specification-attestation/tampered.tgz"             --repo red-cup-engineering/specification-engineering-services-section             --signer-workflow red-cup-engineering/specification-engineering-services-section/.github/workflows/specification-native-receiving.yml             --source-digest b6377fe310bc17131bacb89c3500eb6597ba961f             --deny-self-hosted-runners > "$RUNNER_TEMP/specification-attestation/invalid-response.txt" 2>&1; then
+            echo "::error::One-byte-modified Specification package was accepted as signed"
+            exit 1
+          fi
+          echo "Original signed source admitted; one-byte-modified source refused. Semantic Stage Proof and fabrication authorization remain unreceived."
       - name: Generate and test Code against original Requirement-traced Architecture schema
         env:
           SPEC_ARCHITECTURE_SCHEMA_FILE: ${{ github.workspace }}/specification-source/data/records/schema/architecture-description.schema.json
