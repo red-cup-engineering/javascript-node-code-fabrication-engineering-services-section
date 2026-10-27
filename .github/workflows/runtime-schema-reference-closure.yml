@@ -28,22 +28,22 @@ jobs:
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: '24'
-      - name: Select actual merged Specification owner as source for the adverse test
+      - name: Select actual merged traced Specification Architecture schema as the design-to-Code source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: red-cup-engineering/specification-engineering-services-section
-          ref: 333ed53070ae37043ea021ae271039903e5e68eb
+          ref: be0bbaf62ada9ea1f4f4613f98c956382094e915
           path: specification-source
           persist-credentials: false
       - name: Verify original schema origin and install the actual Code runtime consumer
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C specification-source rev-parse HEAD)" = "333ed53070ae37043ea021ae271039903e5e68eb"
-          test "$(git hash-object specification-source/data/records/schema/architecture-description.schema.json)" = "c11c025bc0aea8d7dbbd7e271519bf23b718d41f"
+          test "$(git -C specification-source rev-parse HEAD)" = "be0bbaf62ada9ea1f4f4613f98c956382094e915"
+          test "$(git hash-object specification-source/data/records/schema/architecture-description.schema.json)" = "978863fa30df43b9c207fdac0fef085f9a37407e"
           npm install --ignore-scripts --no-audit --no-fund --no-package-lock --registry=https://registry.561.group/
           node -e "const p=require('./node_modules/@red-cup-engineering/signcell/package.json');if(p.version!=='0.4.2')process.exit(1)"
-      - name: Execute the entire current Code schema generator suite against original consumers
+      - name: Generate and test Code against original Requirement-traced Architecture schema
         env:
           SPEC_ARCHITECTURE_SCHEMA_FILE: ${{ github.workspace }}/specification-source/data/records/schema/architecture-description.schema.json
         run: |
