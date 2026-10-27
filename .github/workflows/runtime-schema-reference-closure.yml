@@ -6,6 +6,7 @@ on:
       - 'scripts/transform-json-schema-to-typescript.mjs'
       - 'test/runtime-reference-closure.test.mjs'
       - 'test/source-reviewed-architecture-fabrication.test.mjs'
+      - 'test/source-reviewed-design-fabrication.test.mjs'
       - 'test/index.test.mjs'
       - 'package.json'
       - '.github/workflows/runtime-schema-reference-closure.yml'
@@ -33,14 +34,14 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: red-cup-engineering/specification-engineering-services-section
-          ref: b6189996c74e2211cac2d85d86b81116f313e360
+          ref: 5a98b8df9c87857e65c842e45bbadbe01da5dd53
           path: specification-source
           persist-credentials: false
       - name: Verify original schema origin and install the actual Code runtime consumer
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C specification-source rev-parse HEAD)" = "b6189996c74e2211cac2d85d86b81116f313e360"
+          test "$(git -C specification-source rev-parse HEAD)" = "5a98b8df9c87857e65c842e45bbadbe01da5dd53"
           test "$(git hash-object specification-source/data/records/schema/architecture-description.schema.json)" = "978863fa30df43b9c207fdac0fef085f9a37407e"
           npm install --ignore-scripts --no-audit --no-fund --no-package-lock --registry=https://registry.561.group/
           npm install --prefix specification-source --ignore-scripts --no-audit --no-fund --no-package-lock --registry=https://registry.561.group/
@@ -54,4 +55,22 @@ jobs:
           node --check test/index.test.mjs
           node --check test/runtime-reference-closure.test.mjs
           node --check test/source-reviewed-architecture-fabrication.test.mjs
-          node --test test/index.test.mjs test/runtime-reference-closure.test.mjs test/source-reviewed-architecture-fabrication.test.mjs
+          node --check test/source-reviewed-design-fabrication.test.mjs
+          node --test test/index.test.mjs test/runtime-reference-closure.test.mjs test/source-reviewed-architecture-fabrication.test.mjs test/source-reviewed-design-fabrication.test.mjs
+      - name: Independently install packed original Code maker and receive HLD/LLD through its public export
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/code-consumer"
+          archive="$(npm pack --ignore-scripts --silent)"
+          test -s "$archive"
+          sha256sum "$archive"
+          npm install --prefix "$RUNNER_TEMP/code-consumer" "$GITHUB_WORKSPACE/$archive" \
+            --ignore-scripts --no-audit --no-fund --no-package-lock \
+            --registry=https://registry.561.group/
+          cp test/source-reviewed-design-fabrication.test.mjs "$RUNNER_TEMP/code-consumer/"
+          cd "$RUNNER_TEMP/code-consumer"
+          CODE_PACKED_CONSUMER=1 \
+            SPEC_ARCHITECTURE_SOURCE_DIR="$GITHUB_WORKSPACE/specification-source" \
+            node --test source-reviewed-design-fabrication.test.mjs
+          echo "Original packed Code recipient: HLD/LLD-derived runtime schemas installed and exercised; stale, unmodeled and cross-stage sources refused; source adoption, Proof, host installation and beneficiary effects remain open."
