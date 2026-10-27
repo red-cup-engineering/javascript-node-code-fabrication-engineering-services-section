@@ -30,18 +30,18 @@ jobs:
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: '24'
-      - name: Select the reviewed Specification-to-Architecture generator and original source schema
+      - name: Select the source-and-build-qualified original Specification/Design reader and schema
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: red-cup-engineering/specification-engineering-services-section
-          ref: 5a98b8df9c87857e65c842e45bbadbe01da5dd53
+          ref: b6377fe310bc17131bacb89c3500eb6597ba961f
           path: specification-source
           persist-credentials: false
       - name: Verify original schema origin and install the actual Code runtime consumer
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C specification-source rev-parse HEAD)" = "5a98b8df9c87857e65c842e45bbadbe01da5dd53"
+          test "$(git -C specification-source rev-parse HEAD)" = "b6377fe310bc17131bacb89c3500eb6597ba961f"
           test "$(git hash-object specification-source/data/records/schema/architecture-description.schema.json)" = "978863fa30df43b9c207fdac0fef085f9a37407e"
           npm install --ignore-scripts --no-audit --no-fund --no-package-lock --registry=https://registry.561.group/
           npm install --prefix specification-source --ignore-scripts --no-audit --no-fund --no-package-lock --registry=https://registry.561.group/
