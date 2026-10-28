@@ -64,3 +64,35 @@ astral Unicode source path reaches the generated executable module unchanged.
 The installed Code consumer repeats those checks without importing Code
 source directly. No source fixture is an admitted customer Requirement or
 independently accepted pre-fabrication Proof.
+
+## Receive the exact source-owned JSNode clause-assay maker into Code
+
+The JSNode Package Git submodule `services/jsnode-package-services-section` is now
+selected at original source revision
+`f039a4fd4f3fc844fc7aa7455dd16f38ebf1cd77`, the merged producer
+of [negative input-domain assays](https://github.com/red-cup-engineering/jsnode-package-engineering-services-section/pull/9)
+and [opt-in nonmutation/replay assertions](https://github.com/red-cup-engineering/jsnode-package-engineering-services-section/pull/10).
+The parent retains its historical `0.2.4` development dependency, which is not
+a replacement for that exact source or a silently bumped installed runtime.
+
+The **existing** `runtime-schema-reference-closure.yml` CI now checks the
+submodule revision against an independently checked-out producer source, packs
+that *exact* source, installs the resulting npm archive into a clean consumer
+separate from the parent's old dependency, and executes
+`test/jsnode-assay-packed-receiver.mjs` through the producer's public npm
+exports. The consumer reconstructs the original clause/test receipt, runs
+admitted examples, hidden negative-input assertions and source-requested
+nonmutation/stable-replay assertions, and checks a correct, a mutating, and a
+stateful implementation. The latter two must pass the older output-only
+suite and fail the more precise requested behavior tests. A receipt with
+weakened tests or substituted clauses must fail replay.
+
+This is a **Code-owned receiving test** of the original producer's exported
+contract, not another Code generator or a general sandbox. The implementation
+snippets in this controlled test are authored fixtures, never untrusted
+inference output. No actual host isolated executor, paid source lot, Stage
+Proof, install at Bare Cedar Fog, native Work allocation, authenticated
+SignChain occurrence, actual buyer acceptance or settlement is inferred from
+this source-only receiving. The original upstream source Work is
+[Computer Code Engineering #74](https://github.com/red-cup-engineering/computer-code-engineering-services-section/issues/74)
+under [Engineering four-stage closure #137](https://github.com/red-cup-engineering/engineering-services-section/issues/137).
