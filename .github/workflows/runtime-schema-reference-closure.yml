@@ -126,6 +126,20 @@ jobs:
           archive="$(npm pack --ignore-scripts --silent)"
           test -s "$archive"
           sha256sum "$archive"
+          # Receive the *actual packed* test entrance under the original npm
+          # publisher's package-relative file grammar, not a checkout path.
+          node --input-type=module - "$archive" <<'NODE'
+          import assert from 'node:assert/strict';
+          import {execFileSync} from 'node:child_process';
+          const archive=process.argv[2];
+          const manifest=JSON.parse(execFileSync('tar',['-xOzf',archive,'package/package.json'],{encoding:'utf8'}));
+          const file='test/jsnode-assay-packed-receiver.mjs';
+          assert.deepEqual(manifest.receivingTests,[file],
+            'the original published Code consumer must be explicitly selected without ./ path alias');
+          const carried=new Set(execFileSync('tar',['-tzf',archive],{encoding:'utf8'}).split('\n'));
+          assert.ok(carried.has('package/'+file),'the declared receiving test must be carried in the actual npm artifact');
+          console.log('Original publisher receiver declaration and packed Code test file qualified.');
+          NODE
           npm install --prefix "$RUNNER_TEMP/code-consumer" "$GITHUB_WORKSPACE/$archive" \
             --ignore-scripts --no-audit --no-fund --no-package-lock \
             --registry=https://registry.561.group/
