@@ -13,6 +13,6 @@
   (unless (procedure? (module-ref (resolve-interface '(native-code-programme)) name))
     (error "original Systems interface requires callable procedures" name)))
   '(native-code-construction-input native-code-product? native-code-product-input
-    native-code-product-entry native-code-product-binds-source?))
+    native-code-product-entry native-code-product-programme-runtime native-code-product-binds-source?))
 (display "original Systems dynamic Code interface is callable\n")
 
