@@ -151,3 +151,33 @@ test("installed Code receiver refuses an original example/clause name collision 
   assert.equal(result.code,"INVALID_ADMITTED_ASSAYS");
   assert.equal(inferenceCalls,0);
 });
+
+test("packed Code receiver refuses escaped TAP labels before any implementation-source inference",async()=>{
+  for(const unreportable of ["hash#part","path\\fragment"]){
+    const invalidOriginal=structuredClone(closure);
+    invalidOriginal.examples[0].name=unreportable;
+    let sourceCalls=0, isolatedCalls=0;
+    const original=await deriveJsnodePackageFromClosure(invalidOriginal,{
+      infer:async()=>{sourceCalls++;throw new Error("must not buy");},
+      isolatedAssayExecutor:async()=>{isolatedCalls++;throw new Error("must not execute");},
+    });
+    assert.equal(original.code,"INVALID_ADMITTED_ASSAYS");
+    assert.equal(sourceCalls,0);
+    assert.equal(isolatedCalls,0);
+
+    const invalidHidden=originalCases.map(item=>item.name==="reject-nonarray"
+      ? {...item,name:unreportable} : item);
+    let calls=0;
+    const hidden=await deriveJsnodePackageFromClosure(closure,{
+      infer:async()=>({text:JSON.stringify(++calls===1
+        ? {cases:invalidHidden,question:null}
+        : {source:"unreachable",question:null})}),
+      isolatedAssayExecutor:async()=>{isolatedCalls++;throw new Error("must not execute");},
+    });
+    assert.equal(hidden.code,"ASSAY_DERIVATION_REFUSED");
+    assert.equal(calls,1,"only the separate clause-assay source lot may be requested");
+    assert.equal(isolatedCalls,0);
+
+    assert.throws(()=>assayCasesOfDelivery(deliver(invalidHidden),closure),TypeError);
+  }
+});
