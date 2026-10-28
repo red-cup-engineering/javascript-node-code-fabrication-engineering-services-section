@@ -1,6 +1,6 @@
 {
   "name": "@red-cup-engineering/javascript-node-code-fabrication-services-section",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "type": "module",
   "description": "Red Cup Engineering service section for javascript node code fabrication.",
   "repository": {
@@ -10,11 +10,14 @@
   "license": "MIT",
   "exports": {
     "./transform-json-schema-to-typescript": "./scripts/transform-json-schema-to-typescript.mjs",
-    "./project-engineering-design-code": "./scripts/project-engineering-design-code.mjs"
+    "./project-engineering-design-code": "./scripts/project-engineering-design-code.mjs",
+    "./native-code-programme.scm": "./src/native-code-programme.scm",
+    "./materialize-native-code-programme": "./src/materialize-native-code-programme.mjs"
   },
   "scripts": {
     "test": "run-package-tests",
-    "check": "check-package-syntax"
+    "check": "check-package-syntax",
+    "test:native:programme": "node --experimental-import-meta-resolve --test test/native-code-programme.native.mjs"
   },
   "devDependencies": {
     "@red-cup-engineering/jsnode-package-services-section": "0.2.4"
@@ -24,7 +27,9 @@
     "test",
     "content",
     "README.md",
-    "package.json"
+    "package.json",
+    "src",
+    "specifications"
   ],
   "dependencies": {
     "@red-cup-engineering/signcell": "0.4.2"
