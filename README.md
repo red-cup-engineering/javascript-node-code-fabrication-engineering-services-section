@@ -69,7 +69,7 @@ independently accepted pre-fabrication Proof.
 
 The JSNode Package Git submodule `services/jsnode-package-services-section` is now
 selected at original source revision
-`f039a4fd4f3fc844fc7aa7455dd16f38ebf1cd77`, the merged producer
+`7a13bfe1c5ad7287d4c7631564ef7e0f3bc49fbf`, the merged producer
 of [negative input-domain assays](https://github.com/red-cup-engineering/jsnode-package-engineering-services-section/pull/9)
 and [opt-in nonmutation/replay assertions](https://github.com/red-cup-engineering/jsnode-package-engineering-services-section/pull/10).
 The parent retains its historical `0.2.4` development dependency, which is not
@@ -96,3 +96,28 @@ SignChain occurrence, actual buyer acceptance or settlement is inferred from
 this source-only receiving. The original upstream source Work is
 [Computer Code Engineering #74](https://github.com/red-cup-engineering/computer-code-engineering-services-section/issues/74)
 under [Engineering four-stage closure #137](https://github.com/red-cup-engineering/engineering-services-section/issues/137).
+
+## Original Gitlink-driven JSNode Code receiving
+
+Following [source JSNode maker PR #11](https://github.com/red-cup-engineering/jsnode-package-engineering-services-section/pull/11),
+the original `services/jsnode-package-services-section` Gitlink now selects
+maker source `7a13bfe1c5ad7287d4c7631564ef7e0f3bc49fbf`. Its native
+post-merge workflows qualified the source's **combined original-example and
+independently derived-clause TAP name admission** before any Code inference.
+A name collision, control characters or an unreceivable label cannot silently
+be passed on to an executable test or consume a source-writing model lot.
+
+The **existing** `runtime-schema-reference-closure.yml` no longer maintains
+a second manually synchronized maker commit literal. It checks the original
+`.gitmodules` provider address, selects the exact Gitlink from the reviewed
+parent Git tree, checks out precisely that SHA, packs it, installs its real npm
+archive into the independent Code consumer and executes the original public
+fabrication receiver tests. The new installed consumer independently refuses
+colliding example/clause cases and reread receipt substitution and confirms
+an unsafe original example purchases **zero** implementation-inference requests.
+
+This reduces the coordination needed for subsequent source-qualified maker
+updates without replacing Git ownership, adding a parallel WorkCell or granting
+an installation/publish effect. Untrusted generated program isolation, host
+operation, original Work/SignChain admission and independently accepted
+beneficiary software remain separate obligations of the original owners.

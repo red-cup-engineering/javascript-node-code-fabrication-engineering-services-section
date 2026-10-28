@@ -14,7 +14,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
-  assayCasesOfDelivery, testsOfClosure,
+  assayCasesOfDelivery, testsOfClosure, deriveJsnodePackageFromClosure,
 } from "@red-cup-engineering/jsnode-package-services-section/derive-jsnode-package-from-closure";
 import {
   admitClauseAssayDerivation,
@@ -123,4 +123,31 @@ test("original fabrication receipt reader refuses dropping or forging test oblig
     x=>x.name==="source-bound-behavior"?{...x,checks:{stableReplay:true}}:x)}]};
   assert.throws(()=>admitClauseAssayDerivation(order,{tests},forged),
     {code:"CLAUSE_ASSAY_TEST_BINDING_MISMATCH"});
+});
+
+
+test("installed Code receiver refuses an original example/clause name collision before purchasing source",async()=>{
+  const collision=structuredClone(closure);
+  collision.examples[0].name="clause assay reject-nonarray";
+  assert.throws(()=>assayCasesOfDelivery(deliver(originalCases),collision),
+    /runner names must be distinct/u);
+  const originalTests=testsOfClosure(closure,admitted().cases);
+  const order={projections:[{configuration:collision}],
+    requirements:collision.requirements,prohibitions:collision.prohibitions,
+    constraints:collision.constraints};
+  const derivation={attempts:[{phase:"clause-assays",outcome:"derived",cases:originalCases}]};
+  assert.throws(()=>admitClauseAssayDerivation(order,{tests:originalTests},derivation),
+    {code:"INVALID_CLAUSE_ASSAYS"},
+    "a once-valid test receipt cannot be replayed with a new colliding source name");
+
+  const malformed=structuredClone(closure);
+  malformed.examples[0].name="unreceivable\noriginal";
+  let inferenceCalls=0;
+  const result=await deriveJsnodePackageFromClosure(malformed,{
+    infer:async()=>{inferenceCalls++;throw new Error("original Work must refuse before inference");},
+    isolatedAssayExecutor:async()=>{throw new Error("no code should execute");},
+  });
+  assert.equal(result.type,"JsnodeClosureDerivationRefusal");
+  assert.equal(result.code,"INVALID_ADMITTED_ASSAYS");
+  assert.equal(inferenceCalls,0);
 });

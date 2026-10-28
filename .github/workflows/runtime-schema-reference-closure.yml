@@ -39,13 +39,18 @@ jobs:
           ref: b6377fe310bc17131bacb89c3500eb6597ba961f
           path: specification-source
           persist-credentials: false
-      - name: Select exact original JSNode maker source for independent Code receiving
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          repository: red-cup-engineering/jsnode-package-engineering-services-section
-          ref: f039a4fd4f3fc844fc7aa7455dd16f38ebf1cd77
-          path: jsnode-package-source
-          persist-credentials: false
+      - name: Select original JSNode maker from this exact reviewed Gitlink
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_path=services/jsnode-package-services-section
+          # The original Gitlink is the selection. Never follow a source PR
+          # that substitutes an unrelated remote or mutable branch.
+          test "$(git config -f .gitmodules --get submodule.jsnode-package-services-section.url)" = "https://github.com/red-cup-engineering/jsnode-package-engineering-services-section.git"
+          selected="$(git rev-parse "HEAD:$source_path")"
+          [[ "$selected" =~ ^[0-9a-f]{40}$ ]]
+          git -c protocol.file.allow=never submodule update --init -- "$source_path"
+          test "$(git -C "$source_path" rev-parse HEAD)" = "$selected"
       - name: Verify original schema origin and install the actual Code runtime consumer
         shell: bash
         run: |
@@ -133,13 +138,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          selected=f039a4fd4f3fc844fc7aa7455dd16f38ebf1cd77
-          test "$(git ls-tree HEAD services/jsnode-package-services-section | awk '{print $3}')" = "$selected"
-          test "$(git -C jsnode-package-source rev-parse HEAD)" = "$selected"
-          test "$(node -p "require('./jsnode-package-source/package.json').version")" = "0.5.1-dev.5"
+          source_path=services/jsnode-package-services-section
+          selected="$(git rev-parse "HEAD:$source_path")"
+          [[ "$selected" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git -C "$source_path" rev-parse HEAD)" = "$selected"
+          test "$(node -p "require('./services/jsnode-package-services-section/package.json').version")" = "0.5.1-dev.5"
           mkdir -p "$RUNNER_TEMP/jsnode-receiving-archive" "$RUNNER_TEMP/jsnode-clean-consumer"
           (
-            cd jsnode-package-source
+            cd services/jsnode-package-services-section
             npm pack --ignore-scripts --silent --pack-destination "$RUNNER_TEMP/jsnode-receiving-archive" >/dev/null
           )
           shopt -s nullglob
