@@ -51,6 +51,7 @@
 (refused (lambda () (receive-native-code-output changed-source output)))
 (define changed-archive
   (native-code-construction-from-declaration
-    (registered-variant (replace "archiveInputs" (vector (assoc-ref data "parser")))))))
+    (registered-variant (replace "archiveInputs"
+      (make-vector (vector-length (assoc-ref data "archiveInputs")) (assoc-ref data "parser"))))))
 (refused (lambda () (receive-native-code-output changed-archive output)))
 (display "exact sealed declaration preserves original derivation, typed product and selected Node; invalid declarations and outputs refused\n")
