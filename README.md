@@ -69,7 +69,7 @@ independently accepted pre-fabrication Proof.
 
 The JSNode Package Git submodule `services/jsnode-package-services-section` is now
 selected at original source revision
-`7a13bfe1c5ad7287d4c7631564ef7e0f3bc49fbf`, the merged producer
+`5ea672ea74d1395e2bcc9d7d8bf28562970773fe`, the merged producer
 of [negative input-domain assays](https://github.com/red-cup-engineering/jsnode-package-engineering-services-section/pull/9)
 and [opt-in nonmutation/replay assertions](https://github.com/red-cup-engineering/jsnode-package-engineering-services-section/pull/10).
 The parent retains its historical `0.2.4` development dependency, which is not
@@ -101,7 +101,7 @@ under [Engineering four-stage closure #137](https://github.com/red-cup-engineeri
 
 Following [source JSNode maker PR #11](https://github.com/red-cup-engineering/jsnode-package-engineering-services-section/pull/11),
 the original `services/jsnode-package-services-section` Gitlink now selects
-maker source `7a13bfe1c5ad7287d4c7631564ef7e0f3bc49fbf`. Its native
+maker source `5ea672ea74d1395e2bcc9d7d8bf28562970773fe`. Its native
 post-merge workflows qualified the source's **combined original-example and
 independently derived-clause TAP name admission** before any Code inference.
 A name collision, control characters or an unreceivable label cannot silently
@@ -121,3 +121,15 @@ updates without replacing Git ownership, adding a parallel WorkCell or granting
 an installation/publish effect. Untrusted generated program isolation, host
 operation, original Work/SignChain admission and independently accepted
 beneficiary software remain separate obligations of the original owners.
+
+## Native receiver: literal TAP assay names before a paid Code lot
+
+The exact JSNode maker source [PR #12](https://github.com/red-cup-engineering/jsnode-package-engineering-services-section/pull/12)
+adds a source-qualified name gate to the original assay receiver. Node TAP
+escapes hash and backslash labels, so the original literal completion contract
+cannot compare them without further transport normalization. The packed
+Code consumer now refuses both original and hidden names *before purchasing
+implementation-source inference* and independently verifies that the negative
+fixture never calls its executable provider. This is a bounded syntax/receipt
+compatibility correction, **not** installed isolation, signed Work/Stage Proof
+or customer acceptance under Code Engineering #74.
