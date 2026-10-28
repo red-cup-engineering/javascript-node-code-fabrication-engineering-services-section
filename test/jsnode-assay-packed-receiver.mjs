@@ -16,6 +16,8 @@ import test from "node:test";
 import {
   assayCasesOfDelivery, testsOfClosure, deriveJsnodePackageFromClosure,
 } from "@red-cup-engineering/jsnode-package-services-section/derive-jsnode-package-from-closure";
+import {projectJsnodeModules} from "@red-cup-engineering/jsnode-package-services-section/project-jsnode-modules";
+import {moduleOfDelivery} from "@red-cup-engineering/jsnode-package-services-section/derive-jsnode-package-from-closure";
 import {
   admitClauseAssayDerivation,
 } from "@red-cup-engineering/jsnode-package-services-section/fabrication-receipts";
@@ -179,5 +181,52 @@ test("packed Code receiver refuses escaped TAP labels before any implementation-
     assert.equal(isolatedCalls,0);
 
     assert.throws(()=>assayCasesOfDelivery(deliver(invalidHidden),closure),TypeError);
+  }
+});
+
+
+test("installed JSNode source-delivery, catalog and Code consumer agree on exact ECMAScript export names",async()=>{
+  for(const exportName of ["class","default","await","account$"]) {
+    const operation={
+      name:"exact-source",module:"src/exact-source.mjs",exportName,
+      description:"Double a bounded integer",
+      inputSchema:{type:"integer"},outputSchema:{type:"integer"},
+    };
+    const code="function implementation(value){return value*2;}\n"+
+      "export { implementation as "+JSON.stringify(exportName)+" };";
+    const delivery=moduleOfDelivery(JSON.stringify({source:code,question:null}),operation);
+    assert.equal(delivery.source,code,
+      "the installed source decoder must accept the declared ESM name: "+exportName);
+    const files=projectJsnodeModules({
+      sources:[{path:operation.module,text:code}],operations:[operation],
+      cli:{path:"apps/catalog.mjs",name:"exact-source",description:"Executable original catalog"},
+    });
+    const directory=await mkdtemp(path.join(tmpdir(),"code-esm-client-"));
+    try {
+      for(const file of files) {
+        const target=path.join(directory,file.path);
+        await mkdir(path.dirname(target),{recursive:true});
+        await writeFile(target,file.text,"utf8");
+      }
+      const env={...process.env};
+      delete env.NODE_TEST_CONTEXT;
+      const received=spawnSync(process.execPath,["--input-type=module","-e",
+        'import {catalog} from "./apps/catalog.mjs"; if (await catalog.operations["exact-source"].operation(4)!==8) process.exit(7);'],{
+        cwd:directory,encoding:"utf8",timeout:10000,env,
+      });
+      assert.equal(received.status,0,
+        "native Code consumer cannot execute "+exportName+": "+received.stderr);
+    } finally {await rm(directory,{recursive:true,force:true});}
+  }
+  const operation={name:"exact-source",module:"src/exact-source.mjs",exportName:"account$"};
+  for(const forged of [
+    '// export function account$(value) { return value; }\nexport const other = 0;',
+    'export const text = "export function account$() {}";',
+    'export function account$(){return + ;}',
+  ]) {
+    const refused=moduleOfDelivery(JSON.stringify({source:forged,question:null}),operation);
+    assert.equal(refused.source,undefined,
+      "a source-string or syntax error cannot be admitted as the selected module export");
+    assert.ok(typeof refused.refused==="string"&&refused.refused.length);
   }
 });
