@@ -69,7 +69,7 @@ independently accepted pre-fabrication Proof.
 
 The JSNode Package Git submodule `services/jsnode-package-services-section` is now
 selected at original source revision
-`5ea672ea74d1395e2bcc9d7d8bf28562970773fe`, the merged producer
+`e254fca3be3d67668b5dc5bce0fe215b66750fe1`, the merged producer
 of [negative input-domain assays](https://github.com/red-cup-engineering/jsnode-package-engineering-services-section/pull/9)
 and [opt-in nonmutation/replay assertions](https://github.com/red-cup-engineering/jsnode-package-engineering-services-section/pull/10).
 The parent retains its historical `0.2.4` development dependency, which is not
@@ -101,7 +101,7 @@ under [Engineering four-stage closure #137](https://github.com/red-cup-engineeri
 
 Following [source JSNode maker PR #11](https://github.com/red-cup-engineering/jsnode-package-engineering-services-section/pull/11),
 the original `services/jsnode-package-services-section` Gitlink now selects
-maker source `5ea672ea74d1395e2bcc9d7d8bf28562970773fe`. Its native
+maker source `e254fca3be3d67668b5dc5bce0fe215b66750fe1`. Its native
 post-merge workflows qualified the source's **combined original-example and
 independently derived-clause TAP name admission** before any Code inference.
 A name collision, control characters or an unreceivable label cannot silently
@@ -133,3 +133,27 @@ implementation-source inference* and independently verifies that the negative
 fixture never calls its executable provider. This is a bounded syntax/receipt
 compatibility correction, **not** installed isolation, signed Work/Stage Proof
 or customer acceptance under Code Engineering #74.
+
+## Installed source-to-Code receiving for exact ESM exports
+
+The source-qualified original JSNode maker [PR #13](https://github.com/red-cup-engineering/jsnode-package-engineering-services-section/pull/13)
+merged at `e254fca3be3d67668b5dc5bce0fe215b66750fe1`, using the
+original JavaScript syntax reader for ModuleDelivery export admission
+and package projection. Its optional catalog imports exact ESM export
+names, including `default`, reserved words and dollar-sign names, and
+its checked-in generated catalog is regenerated to preserve byte-for-byte
+drift receiving.
+
+The incumbent Code-owned `test/jsnode-assay-packed-receiver.mjs` checks
+the original **clean-installed** maker's module and catalog outputs
+under Node 24 and executes those exported functions as a real consumer.
+Negative controls refuse source-shaped comments, strings and malformed
+JavaScript before a fabricated module can be accepted.
+This is an executable source contract, not a replacement for the
+maker's own tests or host-owned untrusted-code isolation.
+The Code owner selects this producer exclusively through its reviewed
+Gitlink, without duplicating the selected revision in CI.
+
+Original Work/SignCell/SignChain provenance, runtime isolation,
+release, beneficiary receiving and economic settlement remain
+distinct, unreceived obligations.
