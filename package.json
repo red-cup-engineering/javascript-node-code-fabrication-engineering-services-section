@@ -37,5 +37,8 @@
   "funding": {
     "type": "individual",
     "url": "https://github.com/561-group/.github/blob/main/TIPS.md"
-  }
+  },
+  "receivingTests": [
+    "./test/jsnode-assay-packed-receiver.mjs"
+  ]
 }
