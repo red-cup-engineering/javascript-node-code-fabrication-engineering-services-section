@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'scripts/transform-json-schema-to-typescript.mjs'
+      - 'scripts/project-engineering-design-code.mjs'
       - 'test/runtime-reference-closure.test.mjs'
       - 'test/source-reviewed-architecture-fabrication.test.mjs'
       - 'test/source-reviewed-design-fabrication.test.mjs'
@@ -36,7 +37,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: red-cup-engineering/specification-engineering-services-section
-          ref: b6377fe310bc17131bacb89c3500eb6597ba961f
+          ref: db52af5115ce9cc12e027d3ec23c42fe5a2a1aa2
           path: specification-source
           persist-credentials: false
       - name: Select original JSNode maker from this exact reviewed Gitlink
@@ -55,7 +56,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C specification-source rev-parse HEAD)" = "b6377fe310bc17131bacb89c3500eb6597ba961f"
+          test "$(git -C specification-source rev-parse HEAD)" = "db52af5115ce9cc12e027d3ec23c42fe5a2a1aa2"
           test "$(git hash-object specification-source/data/records/schema/architecture-description.schema.json)" = "978863fa30df43b9c207fdac0fef085f9a37407e"
           npm install --ignore-scripts --no-audit --no-fund --no-package-lock --registry=https://registry.561.group/
           npm install --prefix specification-source --ignore-scripts --no-audit --no-fund --no-package-lock --registry=https://registry.561.group/
@@ -78,11 +79,11 @@ jobs:
           test "${#archives[@]}" -eq 1
           archive="${archives[0]}"
           # Digest of upstream merged-main run 40576268741's real signed subject.
-          printf '%s  %s\n'             ca02fc9d2c358172ae05e3db924d59407055ed48eb5d09d7d11d193e6251542a             "$archive" | sha256sum --check --strict
+          printf '%s  %s\n'             4f8ec8696390f40cde192447a9f48bcd571f6e53a4a6d09ae4d2fc240c4b74a2             "$archive" | sha256sum --check --strict
           # A Git checkout pin and checksum do not verify builder identity:
           # demand the original public Sigstore/SLSA statement for these bytes,
           # workflow and immutable source revision.
-          gh attestation verify "$archive"             --repo red-cup-engineering/specification-engineering-services-section             --signer-workflow red-cup-engineering/specification-engineering-services-section/.github/workflows/specification-native-receiving.yml             --source-digest b6377fe310bc17131bacb89c3500eb6597ba961f             --deny-self-hosted-runners             --format json > "$RUNNER_TEMP/specification-attestation/verified.json"
+          gh attestation verify "$archive"             --repo red-cup-engineering/specification-engineering-services-section             --signer-workflow red-cup-engineering/specification-engineering-services-section/.github/workflows/specification-native-receiving.yml             --source-digest db52af5115ce9cc12e027d3ec23c42fe5a2a1aa2             --deny-self-hosted-runners             --format json > "$RUNNER_TEMP/specification-attestation/verified.json"
           node --input-type=module - "$archive" "$RUNNER_TEMP/specification-attestation/verified.json" <<'NODE'
           import assert from 'node:assert/strict';
           import { createHash } from 'node:crypto';
@@ -100,7 +101,7 @@ jobs:
           NODE
           cp "$archive" "$RUNNER_TEMP/specification-attestation/tampered.tgz"
           printf x >> "$RUNNER_TEMP/specification-attestation/tampered.tgz"
-          if gh attestation verify "$RUNNER_TEMP/specification-attestation/tampered.tgz"             --repo red-cup-engineering/specification-engineering-services-section             --signer-workflow red-cup-engineering/specification-engineering-services-section/.github/workflows/specification-native-receiving.yml             --source-digest b6377fe310bc17131bacb89c3500eb6597ba961f             --deny-self-hosted-runners > "$RUNNER_TEMP/specification-attestation/invalid-response.txt" 2>&1; then
+          if gh attestation verify "$RUNNER_TEMP/specification-attestation/tampered.tgz"             --repo red-cup-engineering/specification-engineering-services-section             --signer-workflow red-cup-engineering/specification-engineering-services-section/.github/workflows/specification-native-receiving.yml             --source-digest db52af5115ce9cc12e027d3ec23c42fe5a2a1aa2             --deny-self-hosted-runners > "$RUNNER_TEMP/specification-attestation/invalid-response.txt" 2>&1; then
             echo "::error::One-byte-modified Specification package was accepted as signed"
             exit 1
           fi
@@ -111,6 +112,7 @@ jobs:
           SPEC_ARCHITECTURE_SOURCE_DIR: ${{ github.workspace }}/specification-source
         run: |
           node --check scripts/transform-json-schema-to-typescript.mjs
+          node --check scripts/project-engineering-design-code.mjs
           node --check test/index.test.mjs
           node --check test/runtime-reference-closure.test.mjs
           node --check test/source-reviewed-architecture-fabrication.test.mjs
