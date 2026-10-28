@@ -9,8 +9,7 @@
   },
   "license": "MIT",
   "exports": {
-    "./transform-json-schema-to-typescript": "./scripts/transform-json-schema-to-typescript.mjs",
-    "./project-engineering-design-code": "./scripts/project-engineering-design-code.mjs"
+    "./transform-json-schema-to-typescript": "./scripts/transform-json-schema-to-typescript.mjs"
   },
   "scripts": {
     "test": "run-package-tests",

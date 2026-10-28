@@ -6,31 +6,25 @@ import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
-import { spawnSync } from 'node:child_process';
 
 const originalRoot = process.env.SPEC_ARCHITECTURE_SOURCE_DIR;
 const packed = process.env.CODE_PACKED_CONSUMER === '1';
 
 async function providers() {
   assert.ok(originalRoot, 'original Specification checkout required for source receiving');
-  const [{ planEngineeringDesign, receiveEngineeringDesign, readEngineeringCodeWork },
+  const [{ planEngineeringDesign, receiveEngineeringDesign },
     { sourcesFixture, clausesSplitAcrossModels },
     { renderJsonSchemaModule },
-    { admit }, { projectEngineeringDesignCode }] = await Promise.all([
+    { admit }] = await Promise.all([
       import(pathToFileURL(join(originalRoot, 'src/engineering-design.mjs')).href),
       import(pathToFileURL(join(originalRoot, 'test/engineering-design-source-cut.fixture.mjs')).href),
       packed
         ? import('@red-cup-engineering/javascript-node-code-fabrication-services-section/transform-json-schema-to-typescript')
         : import('../scripts/transform-json-schema-to-typescript.mjs'),
       import('@red-cup-engineering/signcell/type-system'),
-      packed
-        ? import('@red-cup-engineering/javascript-node-code-fabrication-services-section/project-engineering-design-code')
-        : import('../scripts/project-engineering-design-code.mjs'),
     ]);
   return { planEngineeringDesign, receiveEngineeringDesign,
-    sourcesFixture, clausesSplitAcrossModels, renderJsonSchemaModule, admit,
-    readEngineeringCodeWork, projectEngineeringDesignCode };
+    sourcesFixture, clausesSplitAcrossModels, renderJsonSchemaModule, admit };
 }
 
 function highLevelDesign() {
@@ -269,120 +263,4 @@ test('Code receives only byte-materializable LLD module paths from the current S
   const executable = await import('data:text/javascript;base64,' +
     Buffer.from(emitted).toString('base64'));
   assert.equal(executable.modulePath.const, 'src/op-🧵-a.mjs');
-});
-
-
-test('the ORIGINAL Requirement → Specification → Architecture → HLD → LLD produces executable source-checked Code, detects disagreement and receives a corrected revision', {
-  skip: !originalRoot && 'requires exact original Specification/Code source owner',
-}, async t => {
-  const p = await providers(), sources = p.sourcesFixture();
-  const hldPlan = p.planEngineeringDesign({stage:'high-level', sources});
-  const highLevel = p.receiveEngineeringDesign({
-    stage:'high-level', sources, plan:hldPlan,
-    deliveryText:JSON.stringify(highLevelDesign()),
-  });
-  assert.equal(highLevel.type,'EngineeringDesignCandidate');
-  const lowSources = [...sources,{kind:'high-level',text:JSON.stringify(highLevel)}];
-  const lowPlan = p.planEngineeringDesign({stage:'low-level',sources:lowSources});
-  const designText=JSON.stringify(lowLevelDesign());
-  const lowLevel = p.receiveEngineeringDesign({
-    stage:'low-level',sources:lowSources,plan:lowPlan,deliveryText:designText,
-  });
-  assert.equal(lowLevel.type,'EngineeringDesignCandidate');
-
-  const goodA='export function retainA(value) { return {retained:true}; }\n';
-  const badA='export function retainA(value) { return {retained:false}; }\n';
-  const goodB='export async function retainB(value) { return {retained:true}; }\n';
-  const digest = text => 'sha256:'+createHash('sha256').update(text,'utf8').digest('hex');
-  const selected=(a=goodA,b=goodB,expectedA=digest(a)) => p.readEngineeringCodeWork({
-    designCandidate:lowLevel,originalPlan:lowPlan,originalDeliveryText:designText,
-    sourceViews:[
-      {owner:'fixture-data-owner',path:'src/op-a.mjs',text:a,expectedSha256:expectedA},
-      {owner:'fixture-data-owner',path:'src/op-b.mjs',text:b,expectedSha256:digest(b)},
-    ],
-  });
-  const cases=[
-    {operationId:'op-a', requirementCellId:'source-req:a',name:'retains-source-a',
-      input:{originalSource:'owned-source'},expectedOutput:{retained:true},throws:null},
-    {operationId:'op-a', requirementCellId:'source-req:a',name:'rejects-invalid-input-a',
-      input:{originalSource:''},expectedOutput:null,throws:'TypeError'},
-    {operationId:'op-b', requirementCellId:'source-req:b',name:'retains-source-b',
-      input:{originalSource:'another-source'},expectedOutput:{retained:true},throws:null},
-    {operationId:'op-b', requirementCellId:'source-req:b',name:'rejects-invalid-input-b',
-      input:{originalSource:''},expectedOutput:null,throws:'TypeError'},
-  ];
-  const receive = (a=goodA,b=goodB,expectedA=digest(a)) =>
-    p.projectEngineeringDesignCode({codeWorkReadout:selected(a,b,expectedA),cases});
-  const initial=receive();
-  assert.equal(initial.type,'EngineeringDesignCodeCandidate');
-  assert.equal(initial.status,'source-observed-code-projected');
-  assert.equal(initial.semanticProof,'unreceived');
-  assert.equal(initial.executableWork,false);
-  assert.equal(initial.codeApplied,false);
-  assert.equal(initial.beneficiaryReceived,false);
-  assert.equal(initial.independentAssayAuthority,'unverified-submitted-cases');
-  assert.equal(initial.packages.length,1,'same original HLD source owner gets one Code package');
-  assert.deepEqual(initial.packages[0].operations.map(x=>x.operationId),['op-a','op-b']);
-  assert.equal(initial.packages[0].files.length,2);
-  assert.equal(JSON.stringify(initial),JSON.stringify(receive()),
-    'unchanged source/LLD and submitted assays must produce identical Code');
-
-  const workspace=await mkdtemp(join(process.cwd(),'.generated-design-operation-'));
-  t.after(()=>rm(workspace,{recursive:true,force:true}));
-  await mkdir(join(workspace,'src'),{recursive:true});
-  await mkdir(join(workspace,'test'),{recursive:true});
-  const writeProjection=async (projection,sourceA=goodA,sourceB=goodB) => {
-    await writeFile(join(workspace,'src/op-a.mjs'),sourceA,'utf8');
-    await writeFile(join(workspace,'src/op-b.mjs'),sourceB,'utf8');
-    for(const file of projection.packages[0].files)
-      await writeFile(join(workspace,file.path),file.text,'utf8');
-  };
-  const run=()=>{
-    const env={...process.env};delete env.NODE_TEST_CONTEXT;
-    return spawnSync(process.execPath,[
-      '--test','--test-reporter=tap','test/engineering-code-contracts.test.mjs'
-    ],{cwd:workspace,env,encoding:'utf8',timeout:30000,maxBuffer:1024*1024});
-  };
-
-  await writeProjection(initial);
-  const passing=run();
-  assert.equal(passing.status,0,passing.stdout+'\n'+passing.stderr);
-  assert.match(passing.stdout,/# pass 4\b/u,'all original independent cases executed');
-
-  // The old Code candidate must not execute a materially changed source.
-  await writeFile(join(workspace,'src/op-a.mjs'),badA,'utf8');
-  const stale=run();
-  assert.notEqual(stale.status,0,'source mutation must refute the old Code artifact');
-  assert.match(stale.stdout,/Design source revision disagreement: op-a/u);
-  // Re-receiving the same LLD against changed source bytes produces a new
-  // executable Code candidate, but the behavioral contract itself still
-  // detects the wrong implementation output. No self-awarded Proof.
-  const incorrect=receive(badA);
-  assert.notEqual(incorrect.packages[0].files[0].digest,
-    initial.packages[0].files[0].digest);
-  await writeProjection(incorrect,badA);
-  const failing=run();
-  assert.notEqual(failing.status,0);
-  assert.match(failing.stdout,/Design output disagreement: op-a/u);
-
-  // Repair the actual implementation source and re-project from current
-  // owned bytes; the *same* independently authored assays must all pass.
-  const repaired=receive(goodA);
-  await writeProjection(repaired,goodA);
-  const received=run();
-  assert.equal(received.status,0,received.stdout+'\n'+received.stderr);
-  assert.match(received.stdout,/# pass 4\b/u);
-  assert.equal(repaired.semanticProof,'unreceived',
-    'a passing Code test is not the distinct Engineering Stage Proof');
-
-  const staleView=selected(badA,goodB,digest(goodA));
-  assert.equal(staleView.status,'source-disagreement');
-  assert.throws(()=>p.projectEngineeringDesignCode({codeWorkReadout:staleView,cases}),
-    {code:'CODE_SOURCE_NOT_RECEIVED'});
-  assert.throws(()=>p.projectEngineeringDesignCode({
-    codeWorkReadout:{...selected(),independentProof:'received'},cases,
-  }),{code:'CODE_SOURCE_NOT_RECEIVED'},'caller cannot invent Stage Proof');
-  assert.throws(()=>p.projectEngineeringDesignCode({
-    codeWorkReadout:selected(),cases:cases.filter(c=>c.operationId==='op-a'),
-  }),{code:'ASSAY_COVERAGE_INCOMPLETE'},'a requirement cell without tests is not accepted');
 });
