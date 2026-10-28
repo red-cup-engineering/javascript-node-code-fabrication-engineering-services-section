@@ -22,20 +22,34 @@
 (define-record-type <native-code-construction>
   (%construction input package entry)
   construction?
-  (input native-code-construction-input)
+  (input construction-input)
   (package construction-package)
   (entry construction-entry))
 (define-record-type <native-code-product>
   (%product input entry)
   product?
-  (input native-code-product-input)
-  (entry native-code-product-entry))
+  (input product-input)
+  (entry product-entry))
+
+;; Systems resolves the public interface with module-ref.  SRFI-9's generated
+;; accessor syntax is private; export ordinary procedures for dynamic callers.
+(define (native-code-construction-input value) (construction-input value))
+(define (native-code-product-input value) (product-input value))
+(define (native-code-product-entry value) (product-entry value))
 
 (define native-code-product? product?)
 (define (native-code-product-binds-source? product source)
   (and (product? product) (string? source)
        (equal? source (native-code-product-input product))
        (equal? source (canonicalize-path source))))
+
+;; JSON object identity does not depend on property order.  Preserve the exact
+;; key/value set across Guile/Node serialization rather than comparing the
+;; incidental order of their association-list representations.
+(define (package-identity=? expected actual)
+  (and (list? expected) (list? actual)
+       (equal? (sort expected (lambda (a b) (string<? (car a) (car b))))
+               (sort actual (lambda (a b) (string<? (car a) (car b)))))))
 
 (define (store-item path)
   (let ((m (and (string? path)
@@ -136,7 +150,7 @@
                          (string-append output "/native-code-receiving.json") json->scm))
              (entry (construction-entry construction)))
         (unless (and (equal? "native-code-programme.received/v1" (assoc-ref receipt "kind"))
-                     (equal? (construction-package construction) (assoc-ref receipt "package"))
+                     (package-identity=? (construction-package construction) (assoc-ref receipt "package"))
                      (equal? entry (assoc-ref receipt "entry"))
                      (equal? #f (assoc-ref receipt "applicationExecuted"))
                      (file-exists? (string-append output "/" entry)))
