@@ -12,7 +12,7 @@
   #:use-module (json)
   #:export (native-code-construction native-code-construction-input
             receive-native-code-output native-code-product-input native-code-product-entry
-            native-code-product? native-code-product-binds-source?))
+            native-code-product-programme-runtime native-code-product? native-code-product-binds-source?))
 
 (define materializer
   (local-file (string-append (dirname (search-path %load-path "native-code-programme.scm"))
@@ -20,22 +20,25 @@
               "materialize-native-code-programme.mjs"))
 
 (define-record-type <native-code-construction>
-  (%construction input package entry)
+  (%construction input package entry programme-runtime)
   construction?
   (input construction-input)
   (package construction-package)
-  (entry construction-entry))
+  (entry construction-entry)
+  (programme-runtime construction-programme-runtime))
 (define-record-type <native-code-product>
-  (%product input entry)
+  (%product input entry programme-runtime)
   product?
   (input product-input)
-  (entry product-entry))
+  (entry product-entry)
+  (programme-runtime product-programme-runtime))
 
 ;; Systems resolves the public interface with module-ref.  SRFI-9's generated
 ;; accessor syntax is private; export ordinary procedures for dynamic callers.
 (define (native-code-construction-input value) (construction-input value))
 (define (native-code-product-input value) (product-input value))
 (define (native-code-product-entry value) (product-entry value))
+(define (native-code-product-programme-runtime value) (product-programme-runtime value))
 
 (define native-code-product? product?)
 (define (native-code-product-binds-source? product source)
@@ -70,7 +73,8 @@
   path)
 
 (define* (native-code-construction source entry
-          #:key node-program parser-module policy-module bill-file incumbent-package guile-for-build)
+          #:key node-program parser-module policy-module bill-file incumbent-package guile-for-build
+          source-name archive-inputs)
   (regular-source source)
   (regular-source bill-file)
   (unless (and (eq? 'directory (stat:type (lstat source)))
@@ -78,6 +82,10 @@
                (not (member ".." (string-split entry #\/)))
                (string? policy-module) (string? incumbent-package))
     (error "exact native programme source/entry/provider inputs required"))
+  (when (and source-name
+             (or (not (string? source-name)) (string-null? source-name)
+                 (member source-name '("." "..")) (string-contains source-name "/")))
+    (error "single original source input basename required"))
   (let* ((bill (call-with-input-file bill-file json->scm))
          (package (assoc-ref bill "package"))
          (archives (assoc-ref bill "archives"))
@@ -91,18 +99,25 @@
                              (string-prefix? (string-append root "/") incumbent-package)))
                       (vector->list providers)))
       (error "received bounded native provider bill required"))
+    (when (and archive-inputs
+               (or (not (vector? archive-inputs))
+                   (not (= (vector-length archive-inputs) (vector-length archives)))))
+      (error "exact original archive input selection required"))
     ;; Capture immutable registered providers as original Guix inputs.  The
     ;; programme contains no link to the mutable source or receiving directory.
     (let* ((node (store-item node-program))
            (parser (store-item parser-module))
            (roots (map store-item (vector->list providers)))
-           (archive-inputs
-             (map (lambda (a)
-                    (let ((file (regular-source (assoc-ref a "archive"))))
+           (archive-input-files
+             (map (lambda (a supplied)
+                    (let ((file (regular-source (or supplied (assoc-ref a "archive")))))
+                      (when supplied (store-item file))
                       (unless (eq? 'regular (stat:type (lstat file)))
                         (error "regular original archive required"))
-                      (cons a (local-file file))))
-                  (vector->list archives)))
+                      (cons a (local-file file (basename (assoc-ref a "archive"))))))
+                  (vector->list archives)
+                  (if archive-inputs (vector->list archive-inputs)
+                      (make-list (vector-length archives) #f))))
            )
       ;; Tool selection is explicit in the bill; no machine-specific package
       ;; version or provider path is inferred by this generic Code constructor.
@@ -128,14 +143,14 @@
               (unless (zero?
                 (apply system* #$node "--experimental-import-meta-resolve" #$materializer
                   "--guix-inputs" "native-code-input.json"
-                  #$(local-file source #:recursive? #t) #$output
-                  (list #$@(map cdr archive-inputs))))
+                  #$(local-file source (or source-name (basename source)) #:recursive? #t) #$output
+                  (list #$@(map cdr archive-input-files))))
                 (error "native Code programme construction refused")))
           #:options (if guile-for-build
                         (list #:guile-for-build (read-derivation-from-file guile-for-build))
                         '())))
       (%construction input package
-        (string-append "node_modules/" (assoc-ref package "name") "/" entry)))))
+        (string-append "node_modules/" (assoc-ref package "name") "/" entry) node-program))))
 
 (define (receive-native-code-output construction output)
   (unless (construction? construction) (error "original Code construction required"))
@@ -155,5 +170,5 @@
                      (equal? #f (assoc-ref receipt "applicationExecuted"))
                      (file-exists? (string-append output "/" entry)))
           (error "native Code output lacks its original receiving"))
-        (%product output entry)))))
+        (%product output entry (construction-programme-runtime construction))))))
 
