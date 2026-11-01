@@ -37,7 +37,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: red-cup-engineering/specification-engineering-services-section
-          ref: db52af5115ce9cc12e027d3ec23c42fe5a2a1aa2
+          ref: 096567ea84b498d1d1235d255718654756e6a36d
           path: specification-source
           persist-credentials: false
       - name: Select original JSNode maker from this exact reviewed Gitlink
@@ -56,7 +56,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C specification-source rev-parse HEAD)" = "db52af5115ce9cc12e027d3ec23c42fe5a2a1aa2"
+          test "$(git -C specification-source rev-parse HEAD)" = "096567ea84b498d1d1235d255718654756e6a36d"
           test "$(git hash-object specification-source/data/records/schema/architecture-description.schema.json)" = "978863fa30df43b9c207fdac0fef085f9a37407e"
           npm install --ignore-scripts --no-audit --no-fund --no-package-lock --registry=https://registry.561.group/
           npm install --prefix specification-source --ignore-scripts --no-audit --no-fund --no-package-lock --registry=https://registry.561.group/
@@ -78,12 +78,12 @@ jobs:
           archives=( "$RUNNER_TEMP"/specification-attestation/*.tgz )
           test "${#archives[@]}" -eq 1
           archive="${archives[0]}"
-          # Digest of upstream merged-main run 40576268741's real signed subject.
-          printf '%s  %s\n'             4f8ec8696390f40cde192447a9f48bcd571f6e53a4a6d09ae4d2fc240c4b74a2             "$archive" | sha256sum --check --strict
+          # Digest of upstream merged-main run 41243858435's real signed subject.
+          printf '%s  %s\n'             abb66fc6b836806ecdd3d1ff6fd9133c16673c03e99a2e076ddb94e0b9ac5b5e             "$archive" | sha256sum --check --strict
           # A Git checkout pin and checksum do not verify builder identity:
           # demand the original public Sigstore/SLSA statement for these bytes,
           # workflow and immutable source revision.
-          gh attestation verify "$archive"             --repo red-cup-engineering/specification-engineering-services-section             --signer-workflow red-cup-engineering/specification-engineering-services-section/.github/workflows/specification-native-receiving.yml             --source-digest db52af5115ce9cc12e027d3ec23c42fe5a2a1aa2             --deny-self-hosted-runners             --format json > "$RUNNER_TEMP/specification-attestation/verified.json"
+          gh attestation verify "$archive"             --repo red-cup-engineering/specification-engineering-services-section             --signer-workflow red-cup-engineering/specification-engineering-services-section/.github/workflows/specification-native-receiving.yml             --source-digest 096567ea84b498d1d1235d255718654756e6a36d             --deny-self-hosted-runners             --format json > "$RUNNER_TEMP/specification-attestation/verified.json"
           node --input-type=module - "$archive" "$RUNNER_TEMP/specification-attestation/verified.json" <<'NODE'
           import assert from 'node:assert/strict';
           import { createHash } from 'node:crypto';
@@ -101,7 +101,7 @@ jobs:
           NODE
           cp "$archive" "$RUNNER_TEMP/specification-attestation/tampered.tgz"
           printf x >> "$RUNNER_TEMP/specification-attestation/tampered.tgz"
-          if gh attestation verify "$RUNNER_TEMP/specification-attestation/tampered.tgz"             --repo red-cup-engineering/specification-engineering-services-section             --signer-workflow red-cup-engineering/specification-engineering-services-section/.github/workflows/specification-native-receiving.yml             --source-digest db52af5115ce9cc12e027d3ec23c42fe5a2a1aa2             --deny-self-hosted-runners > "$RUNNER_TEMP/specification-attestation/invalid-response.txt" 2>&1; then
+          if gh attestation verify "$RUNNER_TEMP/specification-attestation/tampered.tgz"             --repo red-cup-engineering/specification-engineering-services-section             --signer-workflow red-cup-engineering/specification-engineering-services-section/.github/workflows/specification-native-receiving.yml             --source-digest 096567ea84b498d1d1235d255718654756e6a36d             --deny-self-hosted-runners > "$RUNNER_TEMP/specification-attestation/invalid-response.txt" 2>&1; then
             echo "::error::One-byte-modified Specification package was accepted as signed"
             exit 1
           fi
@@ -158,7 +158,7 @@ jobs:
           selected="$(git rev-parse "HEAD:$source_path")"
           [[ "$selected" =~ ^[0-9a-f]{40}$ ]]
           test "$(git -C "$source_path" rev-parse HEAD)" = "$selected"
-          test "$(node -p "require('./services/jsnode-package-services-section/package.json').version")" = "0.5.1-dev.5"
+          test "$(node -p "require('./services/jsnode-package-services-section/package.json').version")" = "0.5.2-dev.0"
           mkdir -p "$RUNNER_TEMP/jsnode-receiving-archive" "$RUNNER_TEMP/jsnode-clean-consumer"
           (
             cd services/jsnode-package-services-section

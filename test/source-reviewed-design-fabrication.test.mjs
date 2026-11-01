@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 
 const originalRoot = process.env.SPEC_ARCHITECTURE_SOURCE_DIR;
 const packed = process.env.CODE_PACKED_CONSUMER === '1';
@@ -15,7 +16,7 @@ const packed = process.env.CODE_PACKED_CONSUMER === '1';
 async function providers() {
   assert.ok(originalRoot, 'original Specification checkout required for source receiving');
   const [{ planEngineeringDesign, receiveEngineeringDesign, readEngineeringCodeWork },
-    { sourcesFixture, clausesSplitAcrossModels },
+    { sourcesFixture, clausesSplitAcrossModels, sourceWithDeniedCondition },
     { renderJsonSchemaModule },
     { admit }, { projectEngineeringDesignCode }] = await Promise.all([
       import(pathToFileURL(join(originalRoot, 'src/engineering-design.mjs')).href),
@@ -28,8 +29,12 @@ async function providers() {
         ? import('@red-cup-engineering/javascript-node-code-fabrication-services-section/project-engineering-design-code')
         : import('../scripts/project-engineering-design-code.mjs'),
     ]);
+  const ownerRequire = createRequire(pathToFileURL(join(originalRoot, 'package.json')));
+  const { artifactId } = await import(pathToFileURL(ownerRequire.resolve(
+    '@red-cup-engineering/semiotic-eavt-services-section/identity')).href);
   return { planEngineeringDesign, receiveEngineeringDesign,
-    sourcesFixture, clausesSplitAcrossModels, renderJsonSchemaModule, admit,
+    sourcesFixture, clausesSplitAcrossModels, sourceWithDeniedCondition, artifactId,
+    renderJsonSchemaModule, admit,
     readEngineeringCodeWork, projectEngineeringDesignCode };
 }
 
@@ -82,6 +87,31 @@ function lowLevelDesign() {
     ],
     openQuestions: [],
   };
+}
+
+function originalCodeWork(p, sources = p.sourcesFixture(), design = lowLevelDesign()) {
+  const highLevel = p.receiveEngineeringDesign({ stage: 'high-level', sources,
+    plan: p.planEngineeringDesign({ stage: 'high-level', sources }),
+    deliveryText: JSON.stringify(highLevelDesign()) });
+  assert.equal(highLevel.type, 'EngineeringDesignCandidate');
+  const lowSources = [...sources, { kind: 'high-level', text: JSON.stringify(highLevel) }];
+  const originalPlan = p.planEngineeringDesign({ stage: 'low-level', sources: lowSources });
+  const originalDeliveryText = JSON.stringify(design);
+  const designCandidate = p.receiveEngineeringDesign({ stage: 'low-level', sources: lowSources,
+    plan: originalPlan, deliveryText: originalDeliveryText });
+  assert.equal(designCandidate.type, 'EngineeringDesignCandidate');
+  const sourceViews = designCandidate.design.operations.map(operation => {
+    const text = 'export function ' + operation.exportName + '() { return {retained:true}; }\n';
+    return { owner: 'fixture-data-owner', path: operation.module, text,
+      expectedSha256: 'sha256:' + createHash('sha256').update(text).digest('hex') };
+  });
+  const codeWorkReadout = p.readEngineeringCodeWork({
+    designCandidate, originalPlan, originalDeliveryText, sourceViews });
+  assert.equal(codeWorkReadout.status, 'source-present-unassayed');
+  const cases = ['a', 'b'].map(id => ({ operationId: 'op-' + id,
+    requirementCellId: 'source-req:' + id, name: 'independently-authored-' + id,
+    input: { originalSource: 'fixture' }, expectedOutput: { retained: true }, throws: null }));
+  return { codeWorkReadout, cases };
 }
 
 test('original HLD → LLD → generated runnable source-pinned schema types, without Proof promotion', {
@@ -314,7 +344,14 @@ test('the ORIGINAL Requirement → Specification → Architecture → HLD → LL
   const receive = (a=goodA,b=goodB,expectedA=digest(a)) =>
     p.projectEngineeringDesignCode({codeWorkReadout:selected(a,b,expectedA),cases});
   const initial=receive();
+  const original=selected();
   assert.equal(initial.type,'EngineeringDesignCodeCandidate');
+  assert.equal(initial.originalDesignId,original.designCarrierId);
+  assert.match(initial.originalDesignId,/^ni:\/\/\/sha-256;/u);
+  assert.equal(Object.hasOwn(initial,'originalDesignSha256'),false);
+  assert.deepEqual(initial.sourceCut,original.sourceCut);
+  assert.equal(initial.codeSnapshotScope,original.codeSnapshotScope);
+  assert.deepEqual(initial.sourceVerification,original.sourceVerification);
   assert.equal(initial.status,'source-observed-code-projected');
   assert.equal(initial.semanticProof,'unreceived');
   assert.equal(initial.executableWork,false);
@@ -339,12 +376,26 @@ test('the ORIGINAL Requirement → Specification → Architecture → HLD → LL
   };
   const run=()=>{
     const env={...process.env};delete env.NODE_TEST_CONTEXT;
-    return spawnSync(process.execPath,[
+    const result=spawnSync(process.execPath,[
       '--test','--test-reporter=tap','test/engineering-code-contracts.test.mjs'
     ],{cwd:workspace,env,encoding:'utf8',timeout:30000,maxBuffer:1024*1024});
+    assert.equal(result.error,undefined,'native generated tests must actually execute');
+    return result;
   };
 
   await writeProjection(initial);
+  const generated=await import(pathToFileURL(join(workspace,
+    'src/engineering-code-contracts.mjs')).href);
+  const metadata=generated.engineeringCodeSource;
+  assert.equal(metadata.designCarrierId,original.designCarrierId);
+  assert.equal(Object.hasOwn(metadata,'designCarrierSha256'),false);
+  assert.deepEqual(metadata.sourceCut,original.sourceCut);
+  assert.equal(metadata.codeSnapshotScope,original.codeSnapshotScope);
+  assert.deepEqual(metadata.sourceVerification,original.sourceVerification);
+  assert.deepEqual(metadata.operations,initial.packages[0].operations);
+  assert.throws(()=>{metadata.operations[0].originalTrace[0].sourceTarget='denied';},TypeError);
+  assert.throws(()=>{metadata.sourceVerification.missingClauseIds.length=0;},TypeError);
+  assert.throws(()=>{metadata.operations[0].testObligations.status='received';},TypeError);
   const passing=run();
   assert.equal(passing.status,0,passing.stdout+'\n'+passing.stderr);
   assert.match(passing.stdout,/# pass 4\b/u,'all original independent cases executed');
@@ -385,4 +436,118 @@ test('the ORIGINAL Requirement → Specification → Architecture → HLD → LL
   assert.throws(()=>p.projectEngineeringDesignCode({
     codeWorkReadout:selected(),cases:cases.filter(c=>c.operationId==='op-a'),
   }),{code:'ASSAY_COVERAGE_INCOMPLETE'},'a requirement cell without tests is not accepted');
+});
+
+test('native semantic Design identity carries required and prohibited conditions and the original verification inventory into Code', {
+  skip: !originalRoot && 'requires exact original Specification owner',
+}, async () => {
+  const p=await providers();
+  for (const declared of [0,1,2]) {
+    const sources=p.sourceWithDeniedCondition();
+    const specification=JSON.parse(sources[1].text);
+    for (let index=0;index<declared;index++)
+      specification.topics[0].clauses[index].test='node --test test/original-'+index+'.test.mjs';
+    sources[1].text=JSON.stringify(specification);
+    const architecture=JSON.parse(sources[2].text);
+    architecture.sources.find(row=>row.id==='specification').revision=p.artifactId(specification);
+    sources[2].text=JSON.stringify(architecture);
+    const input=originalCodeWork(p,sources), original=input.codeWorkReadout;
+    const candidate=p.projectEngineeringDesignCode(input);
+    assert.equal(candidate.originalDesignId,original.designCarrierId);
+    assert.deepEqual(candidate.sourceVerification,original.sourceVerification);
+    assert.equal(candidate.sourceVerification.clauseCount,2,
+      'source clauses are counted by their original owner, not by Code operations');
+    assert.equal(candidate.sourceVerification.declaredTestCount,declared);
+    assert.deepEqual(candidate.sourceVerification.missingClauseIds,['clause-a','clause-b'].slice(declared));
+    const operations=candidate.packages[0].operations;
+    assert.deepEqual(operations.map(row=>row.originalTrace[0].sourceTarget),['held','denied']);
+    for (let index=0;index<operations.length;index++) {
+      assert.deepEqual(operations[index].testObligations,original.targets[index].testObligations);
+      assert.deepEqual(operations[index].bindingObservation,original.targets[index].bindingObservation);
+      assert.equal(operations[index].testObligations.status,'unreceived');
+    }
+    assert.equal(candidate.semanticProof,'unreceived');
+    assert.equal(candidate.codeApplied,false);
+    assert.equal(candidate.beneficiaryReceived,false);
+  }
+});
+
+test('projection takes immutable JSON snapshots without freezing or retaining a mutable caller source', {
+  skip: !originalRoot && 'requires exact original Specification owner',
+}, async () => {
+  const p=await providers(), input=structuredClone(originalCodeWork(p));
+  const candidate=p.projectEngineeringDesignCode(input);
+  const before=JSON.stringify(candidate);
+  input.codeWorkReadout.sourceCut[0].digest='sha256:'+'0'.repeat(64);
+  input.codeWorkReadout.sourceVerification.missingClauseIds.length=0;
+  input.codeWorkReadout.targets[0].originalTrace[0].sourceTarget='denied';
+  input.codeWorkReadout.targets[0].bindingObservation.status='contested';
+  input.codeWorkReadout.targets[0].testObligations.sourceVerification[0].status='received';
+  input.cases[0].expectedOutput.retained=false;
+  assert.equal(JSON.stringify(candidate),before,'later worker changes cannot rewrite projected evidence');
+  assert.throws(()=>{candidate.packages[0].operations[0].originalTrace[0].sourceTarget='denied';},TypeError);
+  assert.throws(()=>{candidate.packages[0].operations[0].bindingObservation.status='contested';},TypeError);
+  assert.throws(()=>{candidate.packages[0].operations[0].testObligations.sourceVerification.length=0;},TypeError);
+  assert.throws(()=>{candidate.sourceCut[0].digest='changed';},TypeError);
+  const reverseKeys=value=>Array.isArray(value)?value.map(reverseKeys):
+    value!==null&&typeof value==='object'
+      ?Object.fromEntries(Object.entries(value).reverse().map(([key,child])=>[key,reverseKeys(child)])):value;
+  const original=originalCodeWork(p);
+  assert.deepEqual(p.projectEngineeringDesignCode(original),
+    p.projectEngineeringDesignCode(reverseKeys(original)),
+    'property insertion order is not a new semantic source revision or Code change');
+});
+
+test('legacy byte-shaped Design IDs, dropped polarity and manufactured verification standing refuse before Code generation', {
+  skip: !originalRoot && 'requires exact original Specification owner',
+}, async () => {
+  const p=await providers(), original=originalCodeWork(p);
+  const reject=(change,code)=>{
+    const input=structuredClone(original);change(input.codeWorkReadout);
+    assert.throws(()=>p.projectEngineeringDesignCode(input),{code});
+  };
+  reject(row=>{row.designCarrierSha256='sha256:'+'0'.repeat(64);delete row.designCarrierId;},'CODE_SOURCE_NOT_RECEIVED');
+  reject(row=>{row.designCarrierId=row.designCarrierId.slice(0,-1)+'B';},'CODE_SOURCE_NOT_RECEIVED');
+  reject(row=>{delete row.targets[0].originalTrace[0].sourceTarget;},'CODE_TRACE_UNQUALIFIED');
+  reject(row=>{row.targets[0].testObligations.sourceVerification=[];},'CODE_TRACE_UNQUALIFIED');
+  reject(row=>{row.targets[0].testObligations.sourceVerification[0].status='passed';},'CODE_TRACE_UNQUALIFIED');
+  reject(row=>{row.sourceVerification.status='passed';},'CODE_SOURCE_NOT_RECEIVED');
+  reject(row=>{row.targets[0].bindingObservation.status='contested';},'CODE_TARGET_UNQUALIFIED');
+});
+
+test('JSON owner refuses lossy and executable source carriers before projection reads them', {
+  skip: !originalRoot && 'requires exact original Specification owner',
+}, async () => {
+  const p=await providers(), original=originalCodeWork(p);
+  for (const value of [NaN,undefined,()=>true,1n]) {
+    const input=structuredClone(original);input.cases[0].input=value;
+    assert.throws(()=>p.projectEngineeringDesignCode(input),{code:'CODE_WORK_UNBOUNDED'});
+  }
+  const input=structuredClone(original);let invoked=false;
+  Object.defineProperty(input.codeWorkReadout,'sourceVerification',{
+    enumerable:true,get(){invoked=true;throw new Error('source accessor must stay inert');},
+  });
+  assert.throws(()=>p.projectEngineeringDesignCode(input),{code:'CODE_WORK_UNBOUNDED'});
+  assert.equal(invoked,false);
+});
+
+test('generated metadata cannot reserve an original operation schema definition name', {
+  skip: !originalRoot && 'requires exact original Specification owner',
+}, async t => {
+  const p=await providers(), design=lowLevelDesign();
+  const schema=JSON.parse(design.operations[0].inputSchemaJson);
+  schema.$defs={EngineeringCodeSource:schema.properties.originalSource};
+  schema.properties.originalSource={$ref:'#/$defs/EngineeringCodeSource'};
+  design.operations[0].inputSchemaJson=JSON.stringify(schema);
+  const original=originalCodeWork(p,p.sourcesFixture(),design);
+  const candidate=p.projectEngineeringDesignCode(original);
+  const workspace=await mkdtemp(join(process.cwd(),'.generated-metadata-scope-'));
+  t.after(()=>rm(workspace,{recursive:true,force:true}));
+  const file=join(workspace,'contracts.mjs');
+  await writeFile(file,candidate.packages[0].files[0].text,'utf8');
+  const generated=await import(pathToFileURL(file).href);
+  assert.equal(generated.engineeringCodeSource.designCarrierId,original.codeWorkReadout.designCarrierId);
+  assert.equal(p.admit(generated.__inputType0,{originalSource:'source-owned'}).ok,true);
+  assert.equal(p.admit(generated.__inputType0,{originalSource:''}).ok,false);
+  assert.deepEqual(generated.__inputSchema0.$defs,schema.$defs);
 });

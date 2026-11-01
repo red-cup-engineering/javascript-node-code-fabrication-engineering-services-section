@@ -41,18 +41,19 @@ than claiming that schema parsing settles the original Group Requirement.
 
 ## Receive source-bound high-level / low-level design as generated Code
 
-The original Specification Engineering source at revision `b6377fe310bc17131bacb89c3500eb6597ba961f` now provides the source-preserving HLD/LLD plan and receiver, including per-clause Architecture model coverage. The existing Code maker's CI installs that exact original checkout, drives its public `planEngineeringDesign` and `receiveEngineeringDesign` operations at one synthetic, explicitly *unadmitted* source cut, and derives **real executable SignCell runtime input/output schema types** from the received LLD's authored JSON Schema fields using this package's incumbent `renderJsonSchemaModule`. It retains an immutable original HLD/LLD/source reference in the generated ESM module; identical source and design must emit identical bytes.
+The original Specification Engineering source at revision `096567ea84b498d1d1235d255718654756e6a36d` provides the source-preserving HLD/LLD plan and receiver, including per-clause Architecture model coverage. The existing Code maker's CI installs that exact original checkout, drives its public `planEngineeringDesign` and `receiveEngineeringDesign` operations at one synthetic, explicitly *unadmitted* source cut, and derives **real executable SignCell runtime input/output schema types** from the received LLD's authored JSON Schema fields using this package's incumbent `renderJsonSchemaModule`. It retains an immutable original HLD/LLD/source reference in the generated ESM module; identical source and design must emit identical bytes.
 
 The separate packed/npm-installed Code consumer exercises actual runtime positive and negative schema admission, stale Requirement ancestry, incomplete Architecture clause coverage and mismatched HLD→LLD model allocation. The Code producer derives validation contracts but **does not implement the authored operation body**, prove business semantics, authorize a source owner, or claim customer acceptance. Stage-Proof review of the exact source/design, admitted Work, native maker effects, host installation, actual beneficiary acceptance and settlement remain separately owned and unreceived. These automated tests are necessary **source-to-consumer qualification**, not the Engineering closure's final result.
 
 ## Current original Specification source-cut compatibility
 
 The Code source and packed consumer now select the exact upstream Specification
-revision `b6377fe310bc17131bacb89c3500eb6597ba961f`, qualified by the original
-[Specification Engineering PR #13](https://github.com/red-cup-engineering/specification-engineering-services-section/pull/13)
-with independently verified source/build attestation. The Code CI now also
+revision `096567ea84b498d1d1235d255718654756e6a36d`, qualified by original
+[Specification receiving run 41243858435](https://github.com/red-cup-engineering/specification-engineering-services-section/actions/runs/41243858435)
+and [its signed artifact](https://github.com/red-cup-engineering/specification-engineering-services-section/attestations/62197532).
+The Code CI also
 reproduces the exact upstream npm archive (SHA-256
-`ca02fc9d2c358172ae05e3db924d59407055ed48eb5d09d7d11d193e6251542a`)
+`abb66fc6b836806ecdd3d1ff6fd9133c16673c03e99a2e076ddb94e0b9ac5b5e`)
 at that pinned source, then **independently verifies its public Sigstore/SLSA v1
 attestation**, original signer workflow and source revision before exercising
 Code. A one-byte-modified package must be refused by that verifier. This is
@@ -72,8 +73,10 @@ selected at original source revision
 `e254fca3be3d67668b5dc5bce0fe215b66750fe1`, the merged producer
 of [negative input-domain assays](https://github.com/red-cup-engineering/jsnode-package-engineering-services-section/pull/9)
 and [opt-in nonmutation/replay assertions](https://github.com/red-cup-engineering/jsnode-package-engineering-services-section/pull/10).
-The parent retains its historical `0.2.4` development dependency, which is not
-a replacement for that exact source or a silently bumped installed runtime.
+The parent selects the published `0.5.1-dev.4` development-tool package, which
+actually supplies its declared `run-package-tests` and `check-package-syntax`
+commands. The historical `0.2.4` supplied neither command. This installed tool
+selection remains separate from the exact Gitlink source receiving below.
 
 The **existing** `runtime-schema-reference-closure.yml` CI now checks the
 submodule revision against an independently checked-out producer source, packs
@@ -185,9 +188,9 @@ unbounded carriers before writing anything.
 
 The original Code CI now uses the latest **independently built, clean-installed
 and Sigstore/SLSA attested** Specification source cut
-`db52af5115ce9cc12e027d3ec23c42fe5a2a1aa2` with exact qualified
+`096567ea84b498d1d1235d255718654756e6a36d` with exact qualified
 tarball SHA-256
-`4f8ec8696390f40cde192447a9f48bcd571f6e53a4a6d09ae4d2fc240c4b74a2`.
+`abb66fc6b836806ecdd3d1ff6fd9133c16673c03e99a2e076ddb94e0b9ac5b5e`.
 The actual original HLD/LLD reader supplies the tests' Code-work readout.
 One native run generates two real operation adapters, executes four
 source-traced acceptance cases, proves that a changed source is refused,
@@ -206,3 +209,38 @@ repository effect, buyer receiving and settlement remain separate duties.
 The function expressly returns `semanticProof:"unreceived"`,
 `executableWork:false`, `codeApplied:false`, and
 `beneficiaryReceived:false`; passing functional tests cannot change them.
+
+### Preserve relational evidence through the installed Code consumer
+
+The original Design reader's `designCarrierId` is a native semantic `ni:`
+identity. The Code candidate retains it as `originalDesignId`, and generated
+`engineeringCodeSource` retains it as `designCarrierId`. The URI owner validates
+the canonical name; it does not authenticate a Design from its name alone.
+`sourceCut[].digest` and operation source SHA-256 fields continue to identify
+exact bytes. The obsolete `designCarrierSha256` input is refused instead of
+being silently treated as the current source contract.
+
+Every projected package and its generated metadata carry the same original
+operation records, including component ownership, Requirement `held`/`denied`
+polarity, clause/model trace, observed export evidence, interface and complete
+unreceived test obligations. The original source-wide `sourceVerification`
+inventory and `codeSnapshotScope` also cross the boundary unchanged. A missing
+source-authored test remains a missing test even when supplied Code cases pass;
+a prohibited condition remains prohibited.
+
+The existing JSON owner now admits bounded, detached, deeply immutable input
+snapshots. Mutating a caller's readout after projection cannot change its Code
+candidate. Accessors, non-JSON values and lossy serialization refuse before
+generation. The incumbent renderer emits inert, deeply frozen metadata, so
+generated source cannot silently lose nested provenance or reinterpret an own
+`__proto__` JSON key. No second canonicalizer, semantic identity provider or
+schema renderer is introduced.
+
+The complete boundary contract is in
+[specifications/engineering-design-code-projection.md](specifications/engineering-design-code-projection.md).
+Source and separately installed public-export receiving exercise the original
+producer, native identities, both Requirement polarities, all source-test
+declaration states, immutable snapshots, stale source refusal and actual
+generated execution. These checks qualify this Code product; downstream
+Fabrication/MetroPlat installation still requires its own exact dependency
+selection and operation receiving.
