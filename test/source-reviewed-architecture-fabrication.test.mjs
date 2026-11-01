@@ -32,6 +32,7 @@ if (originalRoot) {
       ],
     };
     const review = {
+      reviewedRequirementRevision: artifactId(requirement),
       identity: {
         id: "fabrication-cycle-spec", title: "Source-bound fabrication candidate",
         seat: "independent-stage-review", carrier: "drafts/fabrication-cycle.md",
@@ -42,7 +43,7 @@ if (originalRoot) {
         { cell: "fabrication-cycle:source", clauseId: "source-bound",
           keyword: "MUST", actor: "Original Code maker" },
         { cell: "fabrication-cycle:recipient", clauseId: "recipient-receiving",
-          keyword: "MUST NOT", actor: "Original Code maker" },
+          keyword: "MUST", actor: "Original Code maker" },
       ],
     };
     const specification = specificationOwner.deriveSpecificationFromRequirementReview(requirement, review);
