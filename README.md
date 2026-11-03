@@ -68,7 +68,7 @@ independently accepted pre-fabrication Proof.
 
 ## Receive the exact source-owned JSNode clause-assay maker into Code
 
-The JSNode Package Git submodule `services/jsnode-package-services-section` is now
+The JSNode Package Git submodule `services/node-js-packages-engineering-services-section` is now
 selected at original source revision
 `e254fca3be3d67668b5dc5bce0fe215b66750fe1`, the merged producer
 of [negative input-domain assays](https://github.com/red-cup-engineering/jsnode-package-engineering-services-section/pull/9)
@@ -103,7 +103,7 @@ under [Engineering four-stage closure #137](https://github.com/red-cup-engineeri
 ## Original Gitlink-driven JSNode Code receiving
 
 Following [source JSNode maker PR #11](https://github.com/red-cup-engineering/jsnode-package-engineering-services-section/pull/11),
-the original `services/jsnode-package-services-section` Gitlink now selects
+the original `services/node-js-packages-engineering-services-section` Gitlink now selects
 maker source `e254fca3be3d67668b5dc5bce0fe215b66750fe1`. Its native
 post-merge workflows qualified the source's **combined original-example and
 independently derived-clause TAP name admission** before any Code inference.
