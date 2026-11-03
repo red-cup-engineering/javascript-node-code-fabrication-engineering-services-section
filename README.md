@@ -49,8 +49,8 @@ The separate packed/npm-installed Code consumer exercises actual runtime positiv
 
 The Code source and packed consumer now select the exact upstream Specification
 revision `096567ea84b498d1d1235d255718654756e6a36d`, qualified by original
-[Specification receiving run 41243858435](https://github.com/red-cup-engineering/specification-engineering-services-section/actions/runs/41243858435)
-and [its signed artifact](https://github.com/red-cup-engineering/specification-engineering-services-section/attestations/62197532).
+[Specification receiving run 41243858435](https://github.com/red-cup-engineering/engineering-content-engineering-services-section/actions/runs/41243858435)
+and [its signed artifact](https://github.com/red-cup-engineering/engineering-content-engineering-services-section/attestations/62197532).
 The Code CI also
 reproduces the exact upstream npm archive (SHA-256
 `abb66fc6b836806ecdd3d1ff6fd9133c16673c03e99a2e076ddb94e0b9ac5b5e`)
