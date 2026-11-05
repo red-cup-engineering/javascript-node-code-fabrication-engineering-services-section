@@ -58,6 +58,13 @@ with an expected output or supported thrown error, and cover every target's
 traced Requirement cells. This is submitted test coverage, not independent
 assurance authority or a substitute for the original source's verification plan.
 
+Generated test inputs and expected outputs MUST preserve the admitted JSON
+values exactly, including nested own `__proto__`, `constructor` and `prototype`
+keys. Emit them as parsed, escaped JSON strings, never JavaScript object
+literals whose `__proto__` spelling changes the object's prototype. The same
+rule applies to inputs of expected-error cases. A successful generated assay
+must test the submitted value, not a language-dependent reinterpretation of it.
+
 The JSON owner admits detached immutable snapshots using its resource envelope:
 at most 2 MiB of canonical JSON per readout/cases carrier, depth 64, 100,000
 nodes, 4,096 members per object, 65,536 elements per array, and 1,024 UTF-8 bytes

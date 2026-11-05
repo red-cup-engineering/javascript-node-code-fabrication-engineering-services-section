@@ -551,3 +551,53 @@ test('generated metadata cannot reserve an original operation schema definition 
   assert.equal(p.admit(generated.__inputType0,{originalSource:''}).ok,false);
   assert.deepEqual(generated.__inputSchema0.$defs,schema.$defs);
 });
+
+test('generated assays preserve JSON own keys in input, expected output and refusal cases', {
+  skip: !originalRoot && 'requires exact original Specification owner',
+}, async t => {
+  const p = await providers(), sources = p.sourcesFixture();
+  const highLevel = p.receiveEngineeringDesign({ stage: 'high-level', sources,
+    plan: p.planEngineeringDesign({ stage: 'high-level', sources }),
+    deliveryText: JSON.stringify(highLevelDesign()) });
+  const lowSources = [...sources, { kind: 'high-level', text: JSON.stringify(highLevel) }];
+  const design = lowLevelDesign();
+  for (const op of design.operations) {
+    op.inputSchemaJson = JSON.stringify({ type: 'object' });
+    op.outputSchemaJson = JSON.stringify({ type: 'object' });
+  }
+  const originalPlan = p.planEngineeringDesign({ stage: 'low-level', sources: lowSources });
+  const originalDeliveryText = JSON.stringify(design);
+  const designCandidate = p.receiveEngineeringDesign({ stage: 'low-level', sources: lowSources,
+    plan: originalPlan, deliveryText: originalDeliveryText });
+  const implementations = [
+    'export function retainA(value) { return JSON.parse(JSON.stringify(value)); }\n',
+    'export function retainB(value) { if (Object.hasOwn(value, "__proto__")) throw new RangeError("own key"); return {}; }\n',
+  ];
+  const sourceViews = design.operations.map((op, index) => ({ owner: 'fixture-data-owner',
+    path: op.module, text: implementations[index],
+    expectedSha256: 'sha256:' + createHash('sha256').update(implementations[index]).digest('hex') }));
+  const payload = JSON.parse('{"__proto__":{"webgpu":true},"nested":{"__proto__":{"marker":"own-data"}},"constructor":"data","prototype":"data","quotes":"\\\"\\\\\\n"}');
+  const cases = [
+    { operationId: 'op-a', requirementCellId: 'source-req:a', name: 'preserve-complete-json',
+      input: payload, expectedOutput: payload, throws: null },
+    { operationId: 'op-b', requirementCellId: 'source-req:b', name: 'preserve-refusal-input',
+      input: payload, expectedOutput: null, throws: 'RangeError' },
+  ];
+  const codeWorkReadout = p.readEngineeringCodeWork({ designCandidate, originalPlan,
+    originalDeliveryText, sourceViews });
+  const candidate = p.projectEngineeringDesignCode({ codeWorkReadout, cases });
+  assert.deepEqual(candidate, p.projectEngineeringDesignCode({ codeWorkReadout, cases }));
+  const workspace = await mkdtemp(join(process.cwd(), '.generated-json-assay-'));
+  t.after(() => rm(workspace, { recursive: true, force: true }));
+  await mkdir(join(workspace, 'src'));
+  await mkdir(join(workspace, 'test'));
+  for (const view of sourceViews) await writeFile(join(workspace, view.path), view.text);
+  for (const file of candidate.packages[0].files) await writeFile(join(workspace, file.path), file.text);
+  const env = { ...process.env }; delete env.NODE_TEST_CONTEXT;
+  const result = spawnSync(process.execPath, ['--test', '--test-reporter=tap',
+    'test/engineering-code-contracts.test.mjs'], { cwd: workspace, env,
+    encoding: 'utf8', timeout: 30000, maxBuffer: 1024 * 1024 });
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 0, result.stdout + '\n' + result.stderr);
+  assert.match(result.stdout, /# pass 2\b/u);
+});
