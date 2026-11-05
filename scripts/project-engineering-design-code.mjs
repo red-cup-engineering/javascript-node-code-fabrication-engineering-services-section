@@ -58,6 +58,10 @@ function importLocation(from, to) {
     part : encodeURIComponent(part)).join("/");
 }
 const order = (a, b) => a < b ? -1 : a > b ? 1 : 0;
+// JSON data is not a JavaScript object literal: an own __proto__ key in
+// a literal changes its prototype instead of reaching the implementation.
+// Parse an escaped JSON string for every case value, including error cases.
+const jsonExpression = value => "JSON.parse(" + JSON.stringify(JSON.stringify(value)) + ")";
 
 /**
  * @param {{codeWorkReadout: object, cases: object[]}} options A source reader's
@@ -261,10 +265,10 @@ export function projectEngineeringDesignCode({ codeWorkReadout, cases } = {}) {
       const title = c.operationId + ": " + c.requirementCellId + ": " + c.name;
       tests.push("test(" + JSON.stringify(title) + ", async () => {");
       if (c.throws === null) {
-        tests.push("  assert.deepStrictEqual(await " + fn + "(" + JSON.stringify(c.input) + "), " +
-          JSON.stringify(c.expectedOutput) + ");");
+        tests.push("  assert.deepStrictEqual(await " + fn + "(" + jsonExpression(c.input) + "), " +
+          jsonExpression(c.expectedOutput) + ");");
       } else {
-        tests.push("  await assert.rejects(() => " + fn + "(" + JSON.stringify(c.input) +
+        tests.push("  await assert.rejects(() => " + fn + "(" + jsonExpression(c.input) +
           "), { name: " + JSON.stringify(c.throws) + " });");
       }
       tests.push("});");

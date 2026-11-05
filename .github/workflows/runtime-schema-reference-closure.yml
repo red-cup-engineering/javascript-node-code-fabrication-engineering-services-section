@@ -36,7 +36,8 @@ jobs:
       - name: Select the source-and-build-qualified original Specification/Design reader and schema
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          repository: red-cup-engineering/specification-engineering-services-section
+          # Same original Git history and immutable source; the repository was renamed.
+          repository: red-cup-engineering/engineering-content-engineering-services-section
           ref: 096567ea84b498d1d1235d255718654756e6a36d
           path: specification-source
           persist-credentials: false
@@ -80,10 +81,12 @@ jobs:
           archive="${archives[0]}"
           # Digest of upstream merged-main run 41243858435's real signed subject.
           printf '%s  %s\n'             abb66fc6b836806ecdd3d1ff6fd9133c16673c03e99a2e076ddb94e0b9ac5b5e             "$archive" | sha256sum --check --strict
+          # Query the current repository for the historical attestation, but keep
+          # its original signer-workflow identity and source digest unchanged.
           # A Git checkout pin and checksum do not verify builder identity:
           # demand the original public Sigstore/SLSA statement for these bytes,
           # workflow and immutable source revision.
-          gh attestation verify "$archive"             --repo red-cup-engineering/specification-engineering-services-section             --signer-workflow red-cup-engineering/specification-engineering-services-section/.github/workflows/specification-native-receiving.yml             --source-digest 096567ea84b498d1d1235d255718654756e6a36d             --deny-self-hosted-runners             --format json > "$RUNNER_TEMP/specification-attestation/verified.json"
+          gh attestation verify "$archive"             --repo red-cup-engineering/engineering-content-engineering-services-section             --signer-workflow red-cup-engineering/specification-engineering-services-section/.github/workflows/specification-native-receiving.yml             --source-digest 096567ea84b498d1d1235d255718654756e6a36d             --deny-self-hosted-runners             --format json > "$RUNNER_TEMP/specification-attestation/verified.json"
           node --input-type=module - "$archive" "$RUNNER_TEMP/specification-attestation/verified.json" <<'NODE'
           import assert from 'node:assert/strict';
           import { createHash } from 'node:crypto';
@@ -101,7 +104,7 @@ jobs:
           NODE
           cp "$archive" "$RUNNER_TEMP/specification-attestation/tampered.tgz"
           printf x >> "$RUNNER_TEMP/specification-attestation/tampered.tgz"
-          if gh attestation verify "$RUNNER_TEMP/specification-attestation/tampered.tgz"             --repo red-cup-engineering/specification-engineering-services-section             --signer-workflow red-cup-engineering/specification-engineering-services-section/.github/workflows/specification-native-receiving.yml             --source-digest 096567ea84b498d1d1235d255718654756e6a36d             --deny-self-hosted-runners > "$RUNNER_TEMP/specification-attestation/invalid-response.txt" 2>&1; then
+          if gh attestation verify "$RUNNER_TEMP/specification-attestation/tampered.tgz"             --repo red-cup-engineering/engineering-content-engineering-services-section             --signer-workflow red-cup-engineering/specification-engineering-services-section/.github/workflows/specification-native-receiving.yml             --source-digest 096567ea84b498d1d1235d255718654756e6a36d             --deny-self-hosted-runners > "$RUNNER_TEMP/specification-attestation/invalid-response.txt" 2>&1; then
             echo "::error::One-byte-modified Specification package was accepted as signed"
             exit 1
           fi
