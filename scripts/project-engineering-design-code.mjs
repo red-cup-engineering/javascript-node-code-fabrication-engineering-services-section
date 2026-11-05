@@ -44,6 +44,7 @@ function sourceVerificationInventory(value) {
     value.status === (value.missingClauseIds.length === 0
       ? "source-tests-declared-unverified" : "source-tests-missing");
 }
+const schemaAnnotation = (value, key) => object(value) && Object.hasOwn(value, key) ? value[key] : undefined;
 const nodeSchema = value => value === true ? {} : value === false ? { not: {} } : value;
 function targetPath(value) {
   return typeof value === "string" && value.startsWith("src/") && value.endsWith(".mjs") &&
@@ -62,6 +63,44 @@ const order = (a, b) => a < b ? -1 : a > b ? 1 : 0;
 // a literal changes its prototype instead of reaching the implementation.
 // Parse an escaped JSON string for every case value, including error cases.
 const jsonExpression = value => "JSON.parse(" + JSON.stringify(JSON.stringify(value)) + ")";
+
+// Independently receive the original LLD interface annotations before emitting code.
+function validateInvocationAnnotations(schema, direction) {
+  const argumentKey = 'x-javascript-arguments', resultKey = 'x-javascript-result';
+  const pending = [{ schema, root: true }];
+  while (pending.length) {
+    const { schema: current, root } = pending.pop();
+    if (!object(current)) continue;
+    const argumentsPresent = Object.hasOwn(current, argumentKey);
+    const resultPresent = Object.hasOwn(current, resultKey);
+    if ((argumentsPresent || resultPresent) && !root)
+      fail('CODE_INVOCATION_UNQUALIFIED', 'JavaScript invocation annotations require an interface schema root');
+    if (argumentsPresent && (direction === 'output' || current[argumentKey] !== 'positional') ||
+        resultPresent && (direction === 'input' || !['iterable-values', 'map-entries'].includes(current[resultKey])) ||
+        argumentsPresent && resultPresent)
+      fail('CODE_INVOCATION_UNQUALIFIED', 'Invalid or misplaced JavaScript invocation annotation');
+    if (argumentsPresent || resultPresent) {
+      const ceiling = argumentsPresent ? 64 : 65_536;
+      if (current.type !== 'array' || !Number.isSafeInteger(current.maxItems) ||
+          current.maxItems < 0 || current.maxItems > ceiling)
+        fail('CODE_INVOCATION_UNQUALIFIED', 'JavaScript invocation requires an explicit bounded array schema');
+    }
+    // Visit schema positions only. const/enum/examples and property names
+    // remain ordinary instance data, even when they contain reserved words.
+    const add = child => pending.push({ schema: child, root: false });
+    for (const key of ['additionalProperties', 'unevaluatedProperties', 'unevaluatedItems',
+      'contains', 'propertyNames', 'not', 'if', 'then', 'else', 'additionalItems'])
+      if (Object.hasOwn(current, key)) add(current[key]);
+    if (Object.hasOwn(current, 'items')) {
+      if (Array.isArray(current.items)) current.items.forEach(add); else add(current.items);
+    }
+    for (const key of ['allOf', 'anyOf', 'oneOf', 'prefixItems'])
+      if (Array.isArray(current[key])) current[key].forEach(add);
+    for (const key of ['properties', 'patternProperties', '$defs', 'definitions', 'dependentSchemas'])
+      if (object(current[key])) Object.values(current[key]).forEach(add);
+  }
+}
+
 
 /**
  * @param {{codeWorkReadout: object, cases: object[]}} options A source reader's
@@ -125,6 +164,8 @@ export function projectEngineeringDesignCode({ codeWorkReadout, cases } = {}) {
         byId.has(target.operationId) || target.module === reservedPath) {
       fail("CODE_TARGET_UNQUALIFIED", "every Code operation requires an exact source-bound target and unreceived normative obligations");
     }
+    validateInvocationAnnotations(target.interface.inputSchema, 'input');
+    validateInvocationAnnotations(target.interface.outputSchema, 'output');
     const traced = new Set();
     for (const trace of target.originalTrace) {
       if (!object(trace) || typeof trace.requirementCellId !== "string" ||
@@ -210,8 +251,37 @@ export function projectEngineeringDesignCode({ codeWorkReadout, cases } = {}) {
       const location = importLocation(reservedPath, target.module);
       const label = target.operationId;
       const symbol = "checkedOperation" + index;
+      const positional = schemaAnnotation(target.interface.inputSchema, "x-javascript-arguments") === "positional";
+      const observation = schemaAnnotation(target.interface.outputSchema, "x-javascript-result");
+      const argumentCheck = positional ? [
+        "  if (!Array.isArray(input) || input.length > " + target.interface.inputSchema.maxItems + ") throw new TypeError(" +
+          JSON.stringify("Design positional arguments disagreement: " + label) + ");",
+      ] : [];
+      const resultLines = observation ? [
+        "  const result = await implementation(" + (positional ? "...input" : "input") + ");",
+        ...(observation === "map-entries" ? [
+          "  let size, entries;",
+          "  try {",
+          "    size = Object.getOwnPropertyDescriptor(Map.prototype, \"size\").get.call(result);",
+          "    entries = Map.prototype.entries.call(result);",
+          "  } catch { throw new TypeError(" + JSON.stringify("Design Map result disagreement: " + label) + "); }",
+          "  if (size > " + target.interface.outputSchema.maxItems + ") throw new RangeError(" +
+            JSON.stringify("Design result bound exceeded: " + label) + ");",
+          "  const output = Array.from(entries);",
+        ] : [
+          "  if (result == null || typeof result === \"string\" || typeof result[Symbol.iterator] !== \"function\") throw new TypeError(" +
+            JSON.stringify("Design iterable result disagreement: " + label) + ");",
+          "  const output = [];",
+          "  for (const value of result) {",
+          "    if (output.length === " + target.interface.outputSchema.maxItems + ") throw new RangeError(" +
+            JSON.stringify("Design result bound exceeded: " + label) + ");",
+          "    output.push(value);",
+          "  }",
+        ]),
+      ] : ["  const output = await implementation(" + (positional ? "...input" : "input") + ");"];
       wrappers.push([
         "export async function " + symbol + "(input) {",
+        ...argumentCheck,
         "  if (!admit(__inputType" + index + ", input).ok) throw new TypeError(" +
           JSON.stringify("Design input disagreement: " + label) + ");",
         "  const location = new URL(" + JSON.stringify(location) + ", import.meta.url);",
@@ -223,7 +293,7 @@ export function projectEngineeringDesignCode({ codeWorkReadout, cases } = {}) {
         "  const implementation = module[" + JSON.stringify(target.exportName) + "];",
         "  if (typeof implementation !== \"function\") throw new TypeError(" +
           JSON.stringify("Design export disagreement: " + label) + ");",
-        "  const output = await implementation(input);",
+        ...resultLines,
         "  if (!admit(__outputType" + index + ", output).ok) throw new TypeError(" +
           JSON.stringify("Design output disagreement: " + label) + ");",
         "  return output;",

@@ -601,3 +601,133 @@ test('generated assays preserve JSON own keys in input, expected output and refu
   assert.equal(result.status, 0, result.stdout + '\n' + result.stderr);
   assert.match(result.stdout, /# pass 2\b/u);
 });
+
+function originalInvocationWork(p, contracts) {
+  const sources = p.sourcesFixture();
+  const high = p.receiveEngineeringDesign({ stage:'high-level',sources,
+    plan:p.planEngineeringDesign({stage:'high-level',sources}),
+    deliveryText:JSON.stringify(highLevelDesign()) });
+  const lowSources = [...sources,{kind:'high-level',text:JSON.stringify(high)}];
+  const design = lowLevelDesign();
+  design.operations.forEach((op,i)=>{
+    op.inputSchemaJson=JSON.stringify(contracts[i].inputSchema);
+    op.outputSchemaJson=JSON.stringify(contracts[i].outputSchema);
+  });
+  const originalPlan=p.planEngineeringDesign({stage:'low-level',sources:lowSources});
+  const originalDeliveryText=JSON.stringify(design);
+  const candidate=p.receiveEngineeringDesign({stage:'low-level',sources:lowSources,
+    plan:originalPlan,deliveryText:originalDeliveryText});
+  assert.equal(candidate.type,'EngineeringDesignCandidate',JSON.stringify(candidate));
+  const sourceViews=design.operations.map((op,i)=>({owner:'fixture-data-owner',
+    path:op.module,text:contracts[i].source,
+    expectedSha256:'sha256:'+createHash('sha256').update(contracts[i].source).digest('hex')}));
+  const codeWorkReadout=p.readEngineeringCodeWork({designCandidate:candidate,originalPlan,
+    originalDeliveryText,sourceViews});
+  const cases=contracts.map((c,i)=>({operationId:'op-'+(i?'b':'a'),
+    requirementCellId:'source-req:'+(i?'b':'a'),name:'original-invocation-case',
+    input:c.input,expectedOutput:c.expectedOutput,throws:null}));
+  return {codeWorkReadout,cases,sourceViews};
+}
+const positionalSchema = {type:'array',maxItems:2,'x-javascript-arguments':'positional'};
+const iterableSchema = {type:'array',maxItems:3,'x-javascript-result':'iterable-values'};
+const mapSchema = {type:'array',maxItems:2,'x-javascript-result':'map-entries'};
+
+test('original annotated LLD fabricates positional calls and bounded iterable and Map observations', {
+  skip: !originalRoot && 'requires exact original Specification owner',
+}, async t => {
+  const p=await providers();
+  const sourceA='export function* retainA(count=0, value="default") { try { for(let i=0;i<count;i++) yield value; } finally { globalThis.__codeIteratorClosed = true; } }\n';
+  const sourceB='export function retainB(first="default", second="tail") { return new Map([["first",first],["second",second]]); }\n';
+  const input=originalInvocationWork(p,[
+    {inputSchema:positionalSchema,outputSchema:iterableSchema,source:sourceA,input:[2,'x'],expectedOutput:['x','x']},
+    {inputSchema:positionalSchema,outputSchema:mapSchema,source:sourceB,input:['x'],expectedOutput:[['first','x'],['second','tail']]},
+  ]);
+  const projection=p.projectEngineeringDesignCode(input);
+  assert.deepEqual(projection,p.projectEngineeringDesignCode(input));
+  const workspace=await mkdtemp(join(process.cwd(),'.generated-invocation-'));
+  t.after(()=>rm(workspace,{recursive:true,force:true}));
+  await mkdir(join(workspace,'src'));await mkdir(join(workspace,'test'));
+  for(const file of [...input.sourceViews,...projection.packages[0].files])
+    await writeFile(join(workspace,file.path),file.text);
+  const generated=await import(pathToFileURL(join(workspace,'src/engineering-code-contracts.mjs')).href);
+  assert.deepEqual(await generated.checkedOperation0([3,'limit']),['limit','limit','limit']);
+  assert.deepEqual(await generated.checkedOperation0([]),[]);
+  assert.deepEqual(await generated.checkedOperation1([]),[['first','default'],['second','tail']]);
+  await assert.rejects(()=>generated.checkedOperation0({}),TypeError);
+  await assert.rejects(()=>generated.checkedOperation0([1,2,3]),TypeError);
+  globalThis.__codeIteratorClosed=false;
+  await assert.rejects(()=>generated.checkedOperation0([4,'overflow']),RangeError);
+  assert.equal(globalThis.__codeIteratorClosed,true,'overflow closes the generator');
+  delete globalThis.__codeIteratorClosed;
+  assert.equal(generated.engineeringCodeSource.operations[0].interface.inputSchema['x-javascript-arguments'],'positional');
+  assert.equal(generated.engineeringCodeSource.operations[1].interface.outputSchema['x-javascript-result'],'map-entries');
+  const env={...process.env};delete env.NODE_TEST_CONTEXT;
+  const run=spawnSync(process.execPath,['--test','--test-reporter=tap','test/engineering-code-contracts.test.mjs'],
+    {cwd:workspace,env,encoding:'utf8',timeout:30000,maxBuffer:1024*1024});
+  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stdout+'\n'+run.stderr);
+  assert.match(run.stdout,/# pass 2\b/u);
+});
+
+test('Code independently refuses forged invocation annotations before generating adapters', {
+  skip: !originalRoot && 'requires exact original Specification owner',
+}, async () => {
+  const p=await providers();
+  const original=originalCodeWork(p);
+  for(const [side,schema] of [
+    ['input',{...positionalSchema,maxItems:65}],
+    ['input',{...positionalSchema,maxItems:-1}],
+    ['input',{type:'array','x-javascript-arguments':'positional'}],
+    ['input',{...positionalSchema,'x-javascript-arguments':'eval'}],
+    ['input',mapSchema],['output',positionalSchema],
+    ['output',{...mapSchema,maxItems:65537}],
+    ['output',{...mapSchema,'x-javascript-result':'async-iterable'}],
+    ['output',{type:'object',properties:{nested:mapSchema}}],
+  ]) {
+    const input=structuredClone(original);
+    input.codeWorkReadout.targets[0].interface[side+'Schema']=schema;
+    assert.throws(()=>p.projectEngineeringDesignCode(input),{code:'CODE_INVOCATION_UNQUALIFIED'});
+  }
+});
+
+test('collection observations preserve errors and refuse overflow, fake Maps and asynchronous iterables', {
+  skip: !originalRoot && 'requires exact original Specification owner',
+}, async t => {
+  const p=await providers();
+  const combinations=[
+    {name:'zero-bound',a:'export function* retainA(count) { for(let i=0;i<count;i++) yield i; }',b:'export function retainB() { return new Map(); }',limit:0,input:0,output:[],errorInput:1,error:RangeError},
+    {name:'iterator-error',a:'export function* retainA(count) { if(count) throw new SyntaxError("iteration"); }',b:'export function retainB() { return new Map(); }',limit:1,input:0,output:[],errorInput:1,error:SyntaxError},
+    {name:'close-error',a:'export function* retainA(count) { if(count) { try { yield 1; yield 2; } finally { throw new SyntaxError("cleanup"); } } }',b:'export function retainB() { return new Map(); }',limit:1,input:0,output:[],errorInput:1,error:RangeError},
+    {name:'async-only',a:'export function retainA(count) { return count ? {async *[Symbol.asyncIterator]() { yield 1; }} : []; }',b:'export function retainB() { return new Map(); }',limit:1,input:0,output:[],errorInput:1,error:TypeError},
+    {name:'string-not-collection',a:'export function retainA(count) { return count ? "value" : []; }',b:'export function retainB() { return new Map(); }',limit:1,input:0,output:[],errorInput:1,error:TypeError},
+  ];
+  for(const c of combinations) {
+    const work=originalInvocationWork(p,[
+      {inputSchema:{type:'integer'},outputSchema:{...iterableSchema,maxItems:c.limit},source:c.a,input:c.input,expectedOutput:c.output},
+      {inputSchema:{type:'integer'},outputSchema:{...mapSchema,maxItems:0},source:c.b,input:0,expectedOutput:[]},
+    ]);
+    const projection=p.projectEngineeringDesignCode(work);
+    const directory=await mkdtemp(join(process.cwd(),'.collection-'+c.name+'-'));
+    t.after(()=>rm(directory,{recursive:true,force:true}));
+    await mkdir(join(directory,'src'));
+    for(const file of [...work.sourceViews,projection.packages[0].files[0]])await writeFile(join(directory,file.path),file.text);
+    const generated=await import(pathToFileURL(join(directory,'src/engineering-code-contracts.mjs')).href);
+    assert.deepEqual(await generated.checkedOperation0(c.input),c.output);
+    assert.deepEqual(await generated.checkedOperation1(0),[]);
+    await assert.rejects(()=>generated.checkedOperation0(c.errorInput),c.error);
+  }
+  const work=originalInvocationWork(p,[
+    {inputSchema:{type:'integer'},outputSchema:mapSchema,
+      source:'export function retainA(mode) { if(mode===1) return {size:1,*entries(){yield ["a",1]}}; const map=new Map(mode===2 ? [["a",1],["b",2],["c",3]] : [["__proto__",7]]); map[Symbol.iterator]=()=>{throw new Error("custom iterator must not run")}; return map; }',input:0,expectedOutput:[['__proto__',7]]},
+    {inputSchema:{type:'integer'},outputSchema:{...iterableSchema,items:{type:'integer'}},
+      source:'export function* retainB(mode) { yield mode ? "wrong-type" : 1; }',input:0,expectedOutput:[1]},
+  ]);
+  const projection=p.projectEngineeringDesignCode(work);
+  const directory=await mkdtemp(join(process.cwd(),'.map-observation-'));
+  t.after(()=>rm(directory,{recursive:true,force:true}));await mkdir(join(directory,'src'));
+  for(const file of [...work.sourceViews,projection.packages[0].files[0]])await writeFile(join(directory,file.path),file.text);
+  const generated=await import(pathToFileURL(join(directory,'src/engineering-code-contracts.mjs')).href);
+  assert.deepEqual(await generated.checkedOperation0(0),[['__proto__',7]]);
+  await assert.rejects(()=>generated.checkedOperation0(1),TypeError);
+  await assert.rejects(()=>generated.checkedOperation0(2),RangeError);
+  await assert.rejects(()=>generated.checkedOperation1(1),TypeError);
+});
