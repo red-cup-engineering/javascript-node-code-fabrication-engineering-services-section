@@ -631,6 +631,132 @@ function originalInvocationWork(p, contracts) {
 const positionalSchema = {type:'array',maxItems:2,'x-javascript-arguments':'positional'};
 const iterableSchema = {type:'array',maxItems:3,'x-javascript-result':'iterable-values'};
 const mapSchema = {type:'array',maxItems:2,'x-javascript-result':'map-entries'};
+const factorySchema = {type:'object','x-javascript-factory':{
+  methods:['current','add','refuse','empty','nil'],maxCalls:8,maxArguments:1,
+}};
+
+async function factoryFixture(t, p, source, schema=factorySchema, input={arguments:[2],calls:[]}) {
+  const original=originalInvocationWork(p,[
+    {inputSchema:schema,outputSchema:{type:'array'},source,input,expectedOutput:[]},
+    {inputSchema:{},outputSchema:{},source:'export function retainB(x) { return x; }',input:null,expectedOutput:null},
+  ]);
+  const projection=p.projectEngineeringDesignCode(original);
+  const workspace=await mkdtemp(join(process.cwd(),'.generated-factory-'));
+  t.after(()=>rm(workspace,{recursive:true,force:true}));
+  await mkdir(join(workspace,'src'));await mkdir(join(workspace,'test'));
+  for(const file of [...original.sourceViews,...projection.packages[0].files])
+    await writeFile(join(workspace,file.path),file.text);
+  const generated=await import(pathToFileURL(join(workspace,'src/engineering-code-contracts.mjs')).href);
+  return {run:generated.checkedOperation0,original,projection,workspace};
+}
+
+test('factory contracts generate isolated ordered method lifecycles and detached JSON observations', {
+  skip: !originalRoot && 'requires exact original Specification owner',
+}, async t => {
+  const p=await providers();
+  const source='export function retainA(start=0) { return {value:{count:start}, current(){return this.value;}, async add(n=1){await Promise.resolve();this.value.count+=n;return this.value;}, refuse(){throw new RangeError("unchanged");}, empty(){}, nil(){return null;} }; }';
+  const {run,original,projection,workspace}=await factoryFixture(t,p,source);
+  const call=(method,args=[],captureError=false)=>({method,arguments:args,...(captureError?{captureError}: {})});
+  const input={arguments:[2],calls:[call('current'),call('add',[3]),call('refuse',[],true),call('current'),call('empty'),call('nil')]};
+  const expected=[{status:'returned',value:{count:2}},{status:'returned',value:{count:5}},
+    {status:'threw',name:'RangeError',message:'unchanged'},{status:'returned',value:{count:5}},
+    {status:'returned'},{status:'returned',value:null}];
+  assert.deepEqual(await run(input),expected);
+  assert.deepEqual(await Promise.all([run(input),run(input)]),[expected,expected]);
+  assert.deepEqual(await run({arguments:[],calls:[call('add')]}),[{status:'returned',value:{count:1}}]);
+  await assert.rejects(()=>run({arguments:[],calls:[call('refuse')]}),RangeError);
+  original.cases[0]={...original.cases[0],input,expectedOutput:expected};
+  const product=p.projectEngineeringDesignCode(original);
+  assert.deepEqual(product,p.projectEngineeringDesignCode(original));
+  for(const file of product.packages[0].files)await writeFile(join(workspace,file.path),file.text);
+  const env={...process.env};delete env.NODE_TEST_CONTEXT;
+  const result=spawnSync(process.execPath,['--test','--test-reporter=tap','test/engineering-code-contracts.test.mjs'],{cwd:workspace,env,encoding:'utf8',timeout:30000});
+  assert.equal(result.status,0,result.stdout+result.stderr);assert.match(result.stdout,/# pass 2\b/u);
+  assert.equal(projection.packages[0].operations[0].interface.inputSchema['x-javascript-factory'].maxCalls,8);
+});
+
+test('factory input, method access and observation boundaries refuse without hidden calls or getters', {
+  skip: !originalRoot && 'requires exact original Specification owner',
+}, async t => {
+  const p=await providers();
+  const schema={type:'object','x-javascript-factory':{methods:['current'],maxCalls:2,maxArguments:1}};
+  const source=`export function retainA(kind='plain') {
+    globalThis.__factoryConstructed=(globalThis.__factoryConstructed??0)+1;
+    if(kind==='factory-error')throw new SyntaxError('construction');
+    if(kind==='null')return null;
+    if(kind==='inherited')return Object.create({current(){return 1;}});
+    if(kind==='accessor')return {get current(){globalThis.__factoryGetter=true;return ()=>1;}};
+    if(kind==='instance-then-getter')return {get then(){globalThis.__factoryGetter=true;},current(){return 1;}};
+    return {current(){
+      if(kind==='nonjson')return new Map();
+      if(kind==='cycle'){const x={};x.x=x;return x;}
+      if(kind==='getter')return {get value(){globalThis.__factoryGetter=true;return 1;}};
+      if(kind==='then-getter')return {get then(){globalThis.__factoryGetter=true;}};
+      if(kind==='raw-error')throw 'source-error';
+      if(kind==='large')return 'x'.repeat(1048577);
+      if(kind==='error-message'){const e=new Error();Object.defineProperty(e,'message',{get(){globalThis.__factoryGetter=true;return 'bad';}});throw e;}
+      return 1;
+    }};
+  }`;
+  const {run}=await factoryFixture(t,p,source,schema);
+  globalThis.__factoryConstructed=0;globalThis.__factoryGetter=false;
+  for(const input of [null,{}, {arguments:[],calls:[],extra:true},
+    {arguments:[1,2],calls:[]},{arguments:[],calls:Array(3).fill({method:'current',arguments:[]})},
+    ...['constructor','__proto__','prototype','current.call','absent'].map(method=>({arguments:[],calls:[{method,arguments:[]}]})),
+    {arguments:[],calls:[{method:'current',arguments:[],captureError:'yes'}]},
+    {arguments:[],calls:[{method:'current',arguments:[1,2]}]},
+  ]) await assert.rejects(()=>run(input),TypeError);
+  const getter={get arguments(){globalThis.__factoryGetter=true;return [];},calls:[]};
+  await assert.rejects(()=>run(getter),TypeError);
+  assert.equal(globalThis.__factoryConstructed,0,'complete input preflight precedes construction');
+  assert.equal(globalThis.__factoryGetter,false);
+  const input=kind=>({arguments:[kind],calls:[{method:'current',arguments:[],captureError:true}]});
+  for(const kind of ['null','inherited','accessor','nonjson','cycle','getter','then-getter','large'])
+    await assert.rejects(()=>run(input(kind)),TypeError,kind);
+  assert.deepEqual(await run(input('instance-then-getter')),[{status:'returned',value:1}]);
+  await assert.rejects(()=>run(input('factory-error')),SyntaxError);
+  await assert.rejects(()=>run(input('raw-error')),e=>e==='source-error');
+  await assert.rejects(()=>run(input('error-message')),e=>e instanceof Error);
+  assert.equal(globalThis.__factoryGetter,false,'method/error/value accessors remain inert');
+  delete globalThis.__factoryGetter;delete globalThis.__factoryConstructed;
+});
+
+test('Code independently validates factory contracts and refuses collection observation combinations', {
+  skip: !originalRoot && 'requires exact original Specification owner',
+}, async () => {
+  const p=await providers();
+  for(const change of [{methods:[]},{methods:['constructor']},{maxCalls:65},{maxArguments:-1},{extra:true}]) {
+    const input=structuredClone(originalCodeWork(p));
+    input.codeWorkReadout.targets[0].interface.inputSchema={...factorySchema,'x-javascript-factory':{...factorySchema['x-javascript-factory'],...change}};
+    assert.throws(()=>p.projectEngineeringDesignCode(input),{code:'CODE_INVOCATION_UNQUALIFIED'});
+  }
+  const input=structuredClone(originalCodeWork(p));
+  input.codeWorkReadout.targets[0].interface.inputSchema=factorySchema;
+  input.codeWorkReadout.targets[0].interface.outputSchema=mapSchema;
+  assert.throws(()=>p.projectEngineeringDesignCode(input),{code:'CODE_INVOCATION_UNQUALIFIED'});
+});
+
+test('factory zero-call and cumulative JSON bounds remain distinct from source refusal capture', {
+  skip: !originalRoot && 'requires exact original Specification owner',
+}, async t => {
+  const p=await providers();
+  const zero={type:'object','x-javascript-factory':{methods:['current'],maxCalls:0,maxArguments:0}};
+  const empty=await factoryFixture(t,p,'export function retainA(){return {current(){return 1;}};}',zero,{arguments:[],calls:[]});
+  assert.deepEqual(await empty.run({arguments:[],calls:[]}),[]);
+  await assert.rejects(()=>empty.run({arguments:[],calls:[{method:'current',arguments:[]}]}),TypeError);
+  const source='export function retainA(value){return {current(){return value;},add(n){n.changed=true;return n;}};}';
+  const {run}=await factoryFixture(t,p,source);
+  const value=JSON.parse('{"__proto__":{"own":true},"constructor":"data","prototype":"data"}');
+  const request={arguments:[value],calls:[{method:'current',arguments:[]},{method:'add',arguments:[value]}]};
+  const before=JSON.stringify(request),output=await run(request);
+  assert.equal(JSON.stringify(request),before,'source method cannot mutate the caller request');
+  assert.equal(Object.hasOwn(output[0].value,'__proto__'),true);
+  assert.equal(Object.hasOwn(output[0].value,'changed'),false);
+  assert.equal(output[1].value.changed,true);
+  const large='x'.repeat(200000);
+  await assert.rejects(()=>run({arguments:[large],calls:Array.from({length:6},()=>({method:'current',arguments:[],captureError:true}))}),
+    /observation byte bound/,'aggregate observation failure is not a source-method error');
+});
 
 test('original annotated LLD fabricates positional calls and bounded iterable and Map observations', {
   skip: !originalRoot && 'requires exact original Specification owner',
