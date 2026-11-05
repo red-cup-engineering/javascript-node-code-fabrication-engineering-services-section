@@ -725,7 +725,7 @@ test('Code independently validates factory contracts and refuses collection obse
   skip: !originalRoot && 'requires exact original Specification owner',
 }, async () => {
   const p=await providers();
-  for(const change of [{methods:[]},{methods:['constructor']},{maxCalls:65},{maxArguments:-1},{extra:true}]) {
+  for(const change of [{methods:[]},{methods:['constructor']},{maxCalls:65},{maxArguments:-1},{extra:true}, ...[null,{},[],{maxPathLength:-1},{maxPathLength:17},{maxPathLength:0.5},{maxPathLength:1,extra:true}].map(resultReferences=>({resultReferences}))]) {
     const input=structuredClone(originalCodeWork(p));
     input.codeWorkReadout.targets[0].interface.inputSchema={...factorySchema,'x-javascript-factory':{...factorySchema['x-javascript-factory'],...change}};
     assert.throws(()=>p.projectEngineeringDesignCode(input),{code:'CODE_INVOCATION_UNQUALIFIED'});
@@ -756,6 +756,107 @@ test('factory zero-call and cumulative JSON bounds remain distinct from source r
   const large='x'.repeat(200000);
   await assert.rejects(()=>run({arguments:[large],calls:Array.from({length:6},()=>({method:'current',arguments:[],captureError:true}))}),
     /observation byte bound/,'aggregate observation failure is not a source-method error');
+});
+
+const referenceSchema={type:'object','x-javascript-factory':{
+  methods:['make','same','mutate','echo','fail','empty','corrupt'],maxCalls:16,maxArguments:2,
+  resultReferences:{maxPathLength:2},
+}};
+const ref=(argument,result,path=[])=>({argument,result,path});
+const step=(method,args=[],references=[],captureError=false)=>({method,arguments:args,references,...(captureError?{captureError}:{})});
+const referenceSource=`export function retainA() {
+  globalThis.__referenceFactories=(globalThis.__referenceFactories??0)+1;
+  return {
+    make(n=0){return {count:n,nested:{value:n}};},
+    same(a,b){return a===b;},
+    mutate(value){value.count++;return value;},
+    echo(value){return value;},
+    fail(){throw new RangeError('source refusal');},empty(){},
+    corrupt(value,kind){
+      if(kind==='getter')Object.defineProperty(value,'nested',{enumerable:true,get(){globalThis.__referenceTrap=true;return {};}});
+      if(kind==='prototype')Object.setPrototypeOf(value,{hidden:1});
+      if(kind==='proxy')value.nested=new Proxy({value:1},{ownKeys(){globalThis.__referenceTrap=true;return ['value'];}});
+      if(kind==='delete')delete value.nested;
+      if(kind==='mutate-throw'){value.count++;throw new RangeError('after mutation');}
+      return null;
+    }
+  };
+}`;
+
+test('declared result references preserve raw aliases without rewriting earlier observations or literal JSON', {
+  skip: !originalRoot && 'requires exact original Specification owner',
+}, async t => {
+  const p=await providers(),{run,original,workspace}=await factoryFixture(t,p,referenceSource,referenceSchema,{arguments:[],calls:[]});
+  const marker={argument:0,result:0,path:['nested']};
+  const input={arguments:[],calls:[
+    step('make',[1]),step('echo',[marker]),step('same',[null,null],[ref(0,0),ref(1,0)]),
+    step('make',[1]),step('same',[null,null],[ref(0,0),ref(1,3)]),
+    step('mutate',[null],[ref(0,0)]),step('echo',[null],[ref(0,0,['nested','value'])]),
+    step('echo',[null],[ref(0,0)]),
+  ]};
+  const returned=value=>({status:'returned',value});
+  const expected=[returned({count:1,nested:{value:1}}),returned(marker),returned(true),
+    returned({count:1,nested:{value:1}}),returned(false),returned({count:2,nested:{value:1}}),
+    returned(1),returned({count:2,nested:{value:1}})];
+  const before=JSON.stringify(input);
+  assert.deepEqual(await run(input),expected);
+  assert.equal(JSON.stringify(input),before);
+  assert.deepEqual(await Promise.all([run(input),run(input)]),[expected,expected]);
+  original.cases[0]={...original.cases[0],input,expectedOutput:expected};
+  const projected=p.projectEngineeringDesignCode(original);
+  assert.deepEqual(projected,p.projectEngineeringDesignCode(original));
+  for(const file of projected.packages[0].files)await writeFile(join(workspace,file.path),file.text);
+  const env={...process.env};delete env.NODE_TEST_CONTEXT;
+  const result=spawnSync(process.execPath,['--test','--test-reporter=tap','test/engineering-code-contracts.test.mjs'],{cwd:workspace,env,encoding:'utf8',timeout:30000});
+  assert.equal(result.status,0,result.stdout+result.stderr);assert.match(result.stdout,/# pass 2\b/u);
+});
+
+test('reference static admission precedes construction and never expands or silently overwrites arguments', {
+  skip: !originalRoot && 'requires exact original Specification owner',
+}, async t => {
+  const p=await providers(),{run}=await factoryFixture(t,p,referenceSource,referenceSchema,{arguments:[],calls:[]});
+  globalThis.__referenceFactories=0;
+  const invalid=[
+    ...[-1,0.5,Number.MAX_SAFE_INTEGER+1,1,2].map(result=>[ref(0,result)]),
+    [ref(1,0)],[ref(-1,0)],[ref(0.5,0)],[ref(0,0),ref(0,0)],
+    ...[['constructor'],['__proto__'],['prototype'],['nested','value','extra'],[-1],[0.5],[''],['x'.repeat(129)]].map(path=>[ref(0,0,path)]),
+    [{argument:0,result:0,path:[],extra:true}],
+  ];
+  for(const references of invalid)
+    await assert.rejects(()=>run({arguments:[],calls:[step('make'),step('echo',[null],references,true)]}),TypeError);
+  await assert.rejects(()=>run({arguments:[],calls:[step('make'),step('echo',['must-not-disappear'],[ref(0,0)],true)]}),TypeError);
+  assert.equal(globalThis.__referenceFactories,0);
+  // A current or future reference is refused even when it appears only later.
+  await assert.rejects(()=>run({arguments:[],calls:[step('echo',[null],[ref(0,0)],true)]}),TypeError);
+  assert.equal(globalThis.__referenceFactories,0);
+  delete globalThis.__referenceFactories;
+});
+
+test('failed, void, missing and mutated active references refuse outside source-error capture', {
+  skip: !originalRoot && 'requires exact original Specification owner',
+}, async t => {
+  const p=await providers(),{run}=await factoryFixture(t,p,referenceSource,referenceSchema,{arguments:[],calls:[]});
+  for(const first of [step('fail',[],[],true),step('empty')])
+    await assert.rejects(()=>run({arguments:[],calls:[first,step('echo',[null],[ref(0,0)],true)]}),TypeError);
+  for(const path of [['absent'],['toString'],['nested','toString'],['count','toString']])
+    await assert.rejects(()=>run({arguments:[],calls:[step('make'),step('echo',[null],[ref(0,0,path)],true)]}),TypeError);
+  for(const kind of ['getter','prototype','proxy','delete']) {
+    globalThis.__referenceTrap=false;
+    await assert.rejects(()=>run({arguments:[],calls:[step('make'),step('corrupt',[null,kind],[ref(0,0)]),step('echo',[null],[ref(0,0,['nested'])],true)]}),TypeError);
+    assert.equal(globalThis.__referenceTrap,false,kind+' must not activate reflective traps');
+  }
+  assert.deepEqual(await run({arguments:[],calls:[step('make'),step('corrupt',[null,'mutate-throw'],[ref(0,0)],true),step('echo',[null],[ref(0,0)])]}),
+    [{status:'returned',value:{count:0,nested:{value:0}}},{status:'threw',name:'RangeError',message:'after mutation'},
+     {status:'returned',value:{count:1,nested:{value:0}}}], 'captured source errors do not promise rollback');
+  assert.deepEqual(await run({arguments:[],calls:[step('echo',[[{n:7}]]),step('echo',[null],[ref(0,0,[0,'n'])])]}),
+    [{status:'returned',value:[{n:7}]},{status:'returned',value:7}]);
+  delete globalThis.__referenceTrap;
+  for(const value of [0,false,null,[]])
+    assert.deepEqual(await run({arguments:[],calls:[step('echo',[value]),step('echo',[null],[ref(0,0)])]}),
+      [{status:'returned',value},{status:'returned',value}]);
+  assert.deepEqual(await run({arguments:[],calls:[step('make'),step('fail',[],[],true),step('echo',[null],[ref(0,0,['count'])])]}),
+    [{status:'returned',value:{count:0,nested:{value:0}}},{status:'threw',name:'RangeError',message:'source refusal'},{status:'returned',value:0}]);
+  await assert.rejects(()=>run({arguments:[],calls:[step('echo',[null],[ref(0,0)])]}),TypeError,'no previous invocation result can leak');
 });
 
 test('original annotated LLD fabricates positional calls and bounded iterable and Map observations', {
@@ -856,4 +957,47 @@ test('collection observations preserve errors and refuse overflow, fake Maps and
   await assert.rejects(()=>generated.checkedOperation0(1),TypeError);
   await assert.rejects(()=>generated.checkedOperation0(2),RangeError);
   await assert.rejects(()=>generated.checkedOperation1(1),TypeError);
+});
+
+test('reference input, instances, returned values and thrown errors refuse Proxies without traps', {
+  skip: !originalRoot && 'requires exact original Specification owner',
+}, async t => {
+  const p=await providers();
+  const source=`export function retainA(kind) {
+    const proxy = value => new Proxy(value, {getPrototypeOf(){globalThis.__proxyTrap=true;return Object.prototype;},ownKeys(){globalThis.__proxyTrap=true;return [];},getOwnPropertyDescriptor(){globalThis.__proxyTrap=true;return undefined;}});
+    if(kind==='instance')return proxy({echo(){return 1;}});
+    return {echo(){if(kind==='error')throw proxy(new TypeError('refused'));return proxy({value:1});}};
+  }`;
+  const {run}=await factoryFixture(t,p,source,referenceSchema,{arguments:[],calls:[]});
+  globalThis.__proxyTrap=false;
+  const request={arguments:[],calls:[]};
+  const proxy=new Proxy(request,{ownKeys(){globalThis.__proxyTrap=true;return [];},getPrototypeOf(){globalThis.__proxyTrap=true;return Object.prototype;}});
+  await assert.rejects(()=>run(proxy));
+  await assert.rejects(()=>run({arguments:[proxy],calls:[]}));
+  for(const kind of ['instance','value','error'])
+    await assert.rejects(()=>run({arguments:[kind],calls:[step('echo',[],[],true)]}));
+  assert.equal(globalThis.__proxyTrap,false);
+  delete globalThis.__proxyTrap;
+});
+
+test('reference inert preflight preserves JSON array budgets and refuses inherited pair-spine access', {
+  skip: !originalRoot && 'requires exact original Specification owner',
+}, async t => {
+  const p=await providers();
+  const source=`export function retainA() { return {echo(value){
+    if(value==='sparse' || value==='empty-active') { const tail=new Array(value==='sparse' ? 1 : 0);Object.setPrototypeOf(tail,new Proxy({}, {get(){globalThis.__spineTrap=true;return 1;}}));return ['pair',1,tail]; }
+    return value;
+  }}; }`;
+  const {run}=await factoryFixture(t,p,source,referenceSchema,{arguments:[],calls:[]});
+  const value=Array.from({length:50000},()=>[]);
+  assert.deepEqual(await run({arguments:[],calls:[step('echo',[value])]}),[{status:'returned',value}]);
+  globalThis.__spineTrap=false;
+  const tail=new Array(1);Object.setPrototypeOf(tail,{get 0(){globalThis.__spineTrap=true;return 'pair';}});
+  await assert.rejects(()=>run({arguments:['pair',1,tail],calls:[]}),TypeError);
+  await assert.rejects(()=>run({arguments:[],calls:[step('echo',['sparse'],[],true)]}),TypeError);
+  await assert.rejects(()=>run({arguments:[],calls:[step('echo',['empty-active'],[],true)]}),TypeError);
+  const empty=[];Object.setPrototypeOf(empty,{get 0(){globalThis.__spineTrap=true;return 'pair';}});
+  await assert.rejects(()=>run({arguments:[],calls:[step('echo',[['pair',1,empty]])]}),TypeError);
+  assert.equal(globalThis.__spineTrap,false);
+  delete globalThis.__spineTrap;
 });

@@ -172,7 +172,7 @@ separately authored and original source digests are still checked before import.
 
 Collection limits bound yielded counts and stored entries, not execution time,
 item byte size or side effects. A nonreturning iterator needs the existing host's
-time/resource isolation. Result-reference factory chains, async iterables, callbacks, non-JSON arguments
+time/resource isolation. Async iterables, callbacks, non-JSON arguments
 and arbitrary normalization functions remain unsupported. Bounded own-method
 factory sequences are specified below.
 
@@ -184,9 +184,9 @@ preconditions in the source contract; do not claim tuple-schema validation.
 ## Bounded factory method sequences
 
 A root input-schema annotation `x-javascript-factory` selects an in-memory
-factory sequence instead of a unary operation. Its exact fields are `methods`
+factory sequence instead of a unary operation. Its required fields are `methods`
 (1–32 distinct JavaScript identifier names), `maxCalls` (integer 0–64) and
-`maxArguments` (integer 0–64). The input schema must explicitly have object
+`maxArguments` (integer 0–64). The optional `resultReferences` field is defined below. The input schema must explicitly have object
 type. Reserved method names constructor, prototype and __proto__ are refused.
 The annotation cannot coexist with positional arguments or collection result
 annotations. The original factory module/export and source digest remain the
@@ -225,8 +225,8 @@ whether the source's own recovery contract actually holds.
 
 This version supports JSON-configured memory-only objects such as Crucible's
 session over Gaming's replay controller. It does not support inherited methods,
-getter reads, prior-result references, Weiqi's identity-carrying state arguments,
-or resource-owning sessions requiring guaranteed cleanup. It never probes for
+getter reads or resource-owning sessions requiring guaranteed cleanup.
+Explicit bounded prior-result references are specified below. It never probes for
 implicit dispose/close methods. Counts and JSON bounds do not bound implementation
 execution time, allocations or external effects; host isolation and the source's
 effect contract remain separate requirements. The generated factory receiver
@@ -239,3 +239,51 @@ from the received source/test corpus; unknown use of this exact new annotation
 is now refused instead of ignored. No new plan fields or parallel registry are
 introduced. Requirement cases are authored separately from implementation, and
 adapter generation is not game-rule synthesis or independent acceptance.
+
+### Opt-in references to earlier factory results
+
+`resultReferences: {maxPathLength: N}` is an optional fourth factory-policy
+field, with N a safe integer from 0 to 16 and no other fields. Without it,
+the original three-field contract and generated artifact bytes are unchanged.
+With it, a call may additionally carry `references`, an array of exact
+`{argument, result, path}` descriptors. For example,
+`{method:"extend", arguments:[null, {kind:"play", move:"C3"}], references:[{argument:0, result:0, path:[]}]}`
+passes the first call's successful raw return into the next declared method.
+A subsequent Weiqi call can use `path:["state"]` to select its returned state.
+
+A reference can replace only an existing explicitly null argument slot, once
+per slot. The result index is the absolute index of an earlier call in this
+invocation, including calls that threw. Failed and void returns cannot be
+referenced; null, false and zero are valid returns. Every reference and call is
+structurally preflighted before construction. Factory arguments never contain
+references. Ordinary JSON objects resembling descriptors remain literal data.
+
+An empty path selects the whole raw result. A path has at most N components,
+each a nonempty string of at most 128 characters or a nonnegative safe integer
+below the JSON array bound. Constructor, prototype and __proto__ keys are
+forbidden. Each component must select an existing own enumerable data property.
+There is no prototype lookup, getter execution, arbitrary module selection,
+nested argument substitution or inferred method access.
+
+The generated adapter keeps raw successful results separately from detached
+JSON observations. It never clones or freezes a reference argument. Thus aliases,
+source mutations and older branch points retain their actual identity, while
+previous observations remain unchanged. Before reference use, the current raw
+graph must still satisfy the original bounded JSON supplier. The opt-in adapter
+refuses Proxies before reflective traversal and accessor descriptors before
+reading their values, for inputs and results. Arrays must be dense, with null or
+standard Array.prototype ancestry and no inherited index-zero property. This
+explicit restriction prevents the JSON supplier's pair detector from inspecting
+active inherited positions, including on empty arrays. It also refuses Proxy instances
+and propagates Proxy exceptions without inspecting their prototypes. Raw result
+validation and reference resolution occur outside source-error capture.
+A captured source exception does not imply rollback of previously returned data.
+
+The bounds remain finite calls, arguments, paths, JSON nodes and observation
+bytes. They are not a sandbox or a CPU/heap/effects budget for source code.
+Non-JSON state, inherited methods, async iterables, callbacks, references across
+invocations and automatic resource cleanup remain unsupported. Actual Weiqi
+receiving checks sequential moves, branches, ko and recovery against the session
+owner, including exactly one rule application per accepted command and a
+foreign-state reconstruction control. This generates the source-bound adapter
+and requirement assays, not Weiqi's authored game rules or independent acceptance.

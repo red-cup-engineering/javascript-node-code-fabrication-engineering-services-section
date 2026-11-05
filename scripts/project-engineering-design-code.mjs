@@ -85,7 +85,7 @@ function validateInvocationAnnotations(schema, direction) {
     if (factoryPresent) {
       const policy = current[factoryKey];
       if (direction === 'output' || argumentsPresent || resultPresent || current.type !== 'object' ||
-          !object(policy) || Object.keys(policy).length !== 3 ||
+          !object(policy) || Object.keys(policy).length !== (Object.hasOwn(policy, 'resultReferences') ? 4 : 3) ||
           !['methods', 'maxCalls', 'maxArguments'].every(key => Object.hasOwn(policy, key)) ||
           !Array.isArray(policy.methods) || policy.methods.length < 1 || policy.methods.length > 32 ||
           new Set(policy.methods).size !== policy.methods.length ||
@@ -94,6 +94,13 @@ function validateInvocationAnnotations(schema, direction) {
           !Number.isSafeInteger(policy.maxCalls) || policy.maxCalls < 0 || policy.maxCalls > 64 ||
           !Number.isSafeInteger(policy.maxArguments) || policy.maxArguments < 0 || policy.maxArguments > 64)
         fail('CODE_INVOCATION_UNQUALIFIED', 'Invalid bounded JavaScript factory contract');
+      if (Object.hasOwn(policy, 'resultReferences')) {
+        const references = policy.resultReferences;
+        if (!object(references) || Object.keys(references).length !== 1 ||
+            !Object.hasOwn(references, 'maxPathLength') ||
+            !Number.isSafeInteger(references.maxPathLength) || references.maxPathLength < 0 || references.maxPathLength > 16)
+          fail('CODE_INVOCATION_UNQUALIFIED', 'Invalid bounded result-reference policy');
+      }
     }
     if (argumentsPresent || resultPresent) {
       const ceiling = argumentsPresent ? 64 : 65_536;
@@ -330,6 +337,8 @@ export function projectEngineeringDesignCode({ codeWorkReadout, cases } = {}) {
         ...(targets.some(target => schemaAnnotation(target.interface.inputSchema, "x-javascript-factory"))
           ? ['import { canonicalizeJson as __factoryCanonicalize, JSON_RESOURCE_ENVELOPE as __factoryJsonBounds } from "@red-cup-engineering/json-services-section/canonical-json";',
             'import { isPromise as __factoryIsPromise } from "node:util/types";'] : []),
+        ...(targets.some(target => schemaAnnotation(target.interface.inputSchema, "x-javascript-factory")?.resultReferences)
+          ? ['import { isProxy as __factoryIsProxy } from "node:util/types";'] : []),
         renderJsonSchemaModule(entries, { format: "javascript",
           runtimeBinding: { name: "defineSchemaType",
             from: "@red-cup-engineering/signcell/type-system/schema-type" } }),
