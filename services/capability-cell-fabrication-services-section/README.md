@@ -6,7 +6,7 @@ The existing PDK `services/capcell-manifest-fabrication-service/src/fabricate-lo
 
 ## Specification lineage (opt-in profile v2)
 
-The semantic and scientific requirements belong in Lenticule Science's [L-Space SAS](https://github.com/lenticule-science/linguistics-services-section/blob/main/specifications/l-space-semantic-architecture.md). Engineering placement is [LS-HLD-001](specifications/l-space-hld.md); the tested contract is [LS-LLD-001](specifications/l-space-lld.md). These three records cite the upstream Hoare/ribosome/protein-fold/EDA research and scoped Obsmetrologia proofs, distinguishing models, metaphors and verified statements.
+The semantic and scientific requirements belong in Lenticule Science's [L-Space SAS](https://github.com/lenticule-science/linguistics-science-services-section/blob/main/specifications/l-space-semantic-architecture.md). Engineering placement is [LS-HLD-001](specifications/l-space-hld.md); the tested contract is [LS-LLD-001](specifications/l-space-lld.md). These three records cite the upstream Hoare/ribosome/protein-fold/EDA research and scoped Obsmetrologia proofs, distinguishing models, metaphors and verified statements.
 
 `org.red-cup-engineering.capcell.v1` remains supported unchanged. New `org.red-cup-engineering.capcell.v2` opts into `lineage: {sas, hld, lld}`. Each source pin contains `uri` (canonical HTTPS source), `revision` (explicit immutable source-native revision) and `sha256` (digest of **exact source bytes**, not a Git blob SHA). The source files stay in their owning repositories—**no copied research corpus, registry JSON or new “specification engine”**.
 
