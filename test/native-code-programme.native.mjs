@@ -12,7 +12,7 @@ const tarPackage = provider + '/node_modules/.pnpm/tar@7.5.22/node_modules/tar';
 const tarModule = tarPackage + '/dist/esm/index.js';
 const tar = await import(tarModule);
 const parserModule = provider + '/node_modules/.pnpm/@red-cup-engineering+javascript-parser-service@0.1.0/node_modules/@red-cup-engineering/javascript-parser-service/src/javascript-parser.mjs';
-const policyModule = provider + '/node_modules/.pnpm/@red-cup-engineering+npm-workspace-engineering-services-section@0.16.1-dev.0/node_modules/@red-cup-engineering/npm-workspace-publication-service/src/dependency-policy.mjs';
+const policyModule = provider + '/node_modules/.pnpm/@red-cup-engineering+npm-workspace-publication-service@0.16.1-dev.0/node_modules/@red-cup-engineering/npm-workspace-publication-service/src/dependency-policy.mjs';
 
 async function fixture(t) {
  const root = await fs.mkdtemp(path.join(os.tmpdir(),'native-code-fixture-'));
