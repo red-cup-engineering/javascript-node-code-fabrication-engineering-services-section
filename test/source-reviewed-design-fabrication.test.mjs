@@ -31,7 +31,7 @@ async function providers() {
     ]);
   const ownerRequire = createRequire(pathToFileURL(join(originalRoot, 'package.json')));
   const { artifactId } = await import(pathToFileURL(ownerRequire.resolve(
-    '@red-cup-engineering/semiotic-eavt-services-section/identity')).href);
+    '@red-cup-engineering/semiotic-eavt-engineering-services-section/identity')).href);
   return { planEngineeringDesign, receiveEngineeringDesign,
     sourcesFixture, clausesSplitAcrossModels, sourceWithDeniedCondition, artifactId,
     renderJsonSchemaModule, admit,
