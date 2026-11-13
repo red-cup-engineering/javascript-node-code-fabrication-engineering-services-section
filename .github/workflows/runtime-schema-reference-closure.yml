@@ -48,7 +48,7 @@ jobs:
           source_path=services/jsnode-package-engineering-services-section
           # The original Gitlink is the selection. Never follow a source PR
           # that substitutes an unrelated remote or mutable branch.
-          test "$(git config -f .gitmodules --get submodule.jsnode-package-services-section.url)" = "https://github.com/red-cup-engineering/jsnode-package-engineering-services-section.git"
+          test "$(git config -f .gitmodules --get submodule.jsnode-package-engineering-services-section.url)" = "https://github.com/red-cup-engineering/jsnode-package-engineering-services-section.git"
           selected="$(git rev-parse "HEAD:$source_path")"
           [[ "$selected" =~ ^[0-9a-f]{40}$ ]]
           git -c protocol.file.allow=never submodule update --init -- "$source_path"
