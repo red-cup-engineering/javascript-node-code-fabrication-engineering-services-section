@@ -9,8 +9,8 @@
  */
 import { createHash } from "node:crypto";
 import { posix } from "node:path";
-import { isNiUri, niUriDigest } from "@red-cup-engineering/uri-services-section/ni-uri";
-import { canonicalizeJson, JSON_RESOURCE_ENVELOPE } from "@red-cup-engineering/json-services-section/canonical-json";
+import { isNiUri, niUriDigest } from "@red-cup-engineering/uri-engineering-services-section/ni-uri";
+import { canonicalizeJson, JSON_RESOURCE_ENVELOPE } from "@red-cup-engineering/json-engineering-services-section/canonical-json";
 import { renderJsonSchemaModule } from "./transform-json-schema-to-typescript.mjs";
 import { renderFactoryInvocation } from "./render-factory-invocation.mjs";
 
@@ -335,7 +335,7 @@ export function projectEngineeringDesignCode({ codeWorkReadout, cases } = {}) {
         "import { readFile } from \"node:fs/promises\";",
         "import { createHash } from \"node:crypto\";",
         ...(targets.some(target => schemaAnnotation(target.interface.inputSchema, "x-javascript-factory"))
-          ? ['import { canonicalizeJson as __factoryCanonicalize, JSON_RESOURCE_ENVELOPE as __factoryJsonBounds } from "@red-cup-engineering/json-services-section/canonical-json";',
+          ? ['import { canonicalizeJson as __factoryCanonicalize, JSON_RESOURCE_ENVELOPE as __factoryJsonBounds } from "@red-cup-engineering/json-engineering-services-section/canonical-json";',
             'import { isPromise as __factoryIsPromise } from "node:util/types";'] : []),
         ...(targets.some(target => schemaAnnotation(target.interface.inputSchema, "x-javascript-factory")?.resultReferences)
           ? ['import { isProxy as __factoryIsProxy } from "node:util/types";'] : []),

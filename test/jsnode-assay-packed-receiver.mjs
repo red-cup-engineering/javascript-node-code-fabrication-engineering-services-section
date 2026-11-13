@@ -15,12 +15,12 @@ import path from "node:path";
 import test from "node:test";
 import {
   assayCasesOfDelivery, testsOfClosure, deriveJsnodePackageFromClosure,
-} from "@red-cup-engineering/jsnode-package-services-section/derive-jsnode-package-from-closure";
-import {projectJsnodeModules} from "@red-cup-engineering/jsnode-package-services-section/project-jsnode-modules";
-import {moduleOfDelivery} from "@red-cup-engineering/jsnode-package-services-section/derive-jsnode-package-from-closure";
+} from "@red-cup-engineering/jsnode-package-engineering-services-section/derive-jsnode-package-from-closure";
+import {projectJsnodeModules} from "@red-cup-engineering/jsnode-package-engineering-services-section/project-jsnode-modules";
+import {moduleOfDelivery} from "@red-cup-engineering/jsnode-package-engineering-services-section/derive-jsnode-package-from-closure";
 import {
   admitClauseAssayDerivation,
-} from "@red-cup-engineering/jsnode-package-services-section/fabrication-receipts";
+} from "@red-cup-engineering/jsnode-package-engineering-services-section/fabrication-receipts";
 
 const closure = {
   packageName: "code-owner-receiving-fixture",

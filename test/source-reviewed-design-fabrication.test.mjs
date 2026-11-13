@@ -22,11 +22,11 @@ async function providers() {
       import(pathToFileURL(join(originalRoot, 'src/engineering-design.mjs')).href),
       import(pathToFileURL(join(originalRoot, 'test/engineering-design-source-cut.fixture.mjs')).href),
       packed
-        ? import('@red-cup-engineering/javascript-node-code-fabrication-services-section/transform-json-schema-to-typescript')
+        ? import('@red-cup-engineering/javascript-node-code-fabrication-engineering-services-section/transform-json-schema-to-typescript')
         : import('../scripts/transform-json-schema-to-typescript.mjs'),
       import('@red-cup-engineering/signcell/type-system'),
       packed
-        ? import('@red-cup-engineering/javascript-node-code-fabrication-services-section/project-engineering-design-code')
+        ? import('@red-cup-engineering/javascript-node-code-fabrication-engineering-services-section/project-engineering-design-code')
         : import('../scripts/project-engineering-design-code.mjs'),
     ]);
   const ownerRequire = createRequire(pathToFileURL(join(originalRoot, 'package.json')));
