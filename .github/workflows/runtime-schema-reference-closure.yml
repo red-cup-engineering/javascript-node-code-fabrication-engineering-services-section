@@ -10,7 +10,7 @@ on:
       - 'test/source-reviewed-design-fabrication.test.mjs'
       - 'test/index.test.mjs'
       - 'test/jsnode-assay-packed-receiver.mjs'
-      - 'services/jsnode-package-services-section'
+      - 'services/jsnode-package-engineering-services-section'
       - 'package.json'
       - '.github/workflows/runtime-schema-reference-closure.yml'
   push:
@@ -45,7 +45,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          source_path=services/jsnode-package-services-section
+          source_path=services/jsnode-package-engineering-services-section
           # The original Gitlink is the selection. Never follow a source PR
           # that substitutes an unrelated remote or mutable branch.
           test "$(git config -f .gitmodules --get submodule.jsnode-package-services-section.url)" = "https://github.com/red-cup-engineering/jsnode-package-engineering-services-section.git"
@@ -157,14 +157,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          source_path=services/jsnode-package-services-section
+          source_path=services/jsnode-package-engineering-services-section
           selected="$(git rev-parse "HEAD:$source_path")"
           [[ "$selected" =~ ^[0-9a-f]{40}$ ]]
           test "$(git -C "$source_path" rev-parse HEAD)" = "$selected"
-          test "$(node -p "require('./services/jsnode-package-services-section/package.json').version")" = "0.5.2-dev.0"
+          test "$(node -p "require('./services/jsnode-package-engineering-services-section/package.json').version")" = "0.5.2-dev.0"
           mkdir -p "$RUNNER_TEMP/jsnode-receiving-archive" "$RUNNER_TEMP/jsnode-clean-consumer"
           (
-            cd services/jsnode-package-services-section
+            cd services/jsnode-package-engineering-services-section
             npm pack --ignore-scripts --silent --pack-destination "$RUNNER_TEMP/jsnode-receiving-archive" >/dev/null
           )
           shopt -s nullglob

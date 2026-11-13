@@ -1,5 +1,5 @@
-[submodule "services/jsnode-package-services-section"]
-	path = services/jsnode-package-services-section
+[submodule "services/jsnode-package-engineering-services-section"]
+	path = services/jsnode-package-engineering-services-section
 	url = https://github.com/red-cup-engineering/jsnode-package-engineering-services-section.git
 	branch = main
 [submodule "services/jsnode-package-scaffold-service"]
