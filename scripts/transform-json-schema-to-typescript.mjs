@@ -261,6 +261,25 @@ export function renderJsonSchemaModule(entries, options = {}) {
     if (entry.runtimeName !== undefined)
       assertCompleteRuntimeReferences(entry.schema, ordered);
   }
+  // Public names must not capture intrinsics used by generated initializers.
+  // Preserve ordinary output bytes; allocate collision-free private bindings
+  // only where executable declarations would shadow Object or JSON.
+  const bindings = new Map();
+  const occupied = new Set([...names, ...typeNames]);
+  let bindingIndex = 0;
+  if (format !== "declaration") for (const name of [...names].sort()) {
+    if (!["Object", "JSON"].includes(name)) continue;
+    let local;
+    do { local = "__schemaBinding" + bindingIndex++; } while (occupied.has(local));
+    occupied.add(local);
+    bindings.set(name, local);
+  }
+  const binding = name => bindings.get(name) ?? name;
+  const declaration = (name, expression, internal = false) => {
+    const local = binding(name);
+    return `${internal || local !== name ? "const" : "export const"} ${local} = ${expression};` +
+      (internal || local === name ? "" : `\nexport { ${local} as ${name} };`);
+  };
   const runtimeReferences = (entry) => {
     const found = new Set();
     const visitedEntries = new Set();
@@ -290,7 +309,7 @@ export function renderJsonSchemaModule(entries, options = {}) {
   };
   return [
     "/** Generated from specifications/*.schema.json. Do not edit. */",
-    runtimeBinding === undefined ? undefined : `import ${format === "declaration" ? "type " : ""}{ ${runtimeBinding.name} } from ${quoted(runtimeBinding.from)};`,
+    runtimeBinding === undefined ? undefined : `import ${format === "declaration" ? "type " : ""}{ ${runtimeBinding.name}${binding(runtimeBinding.name) === runtimeBinding.name ? "" : " as " + binding(runtimeBinding.name)} } from ${quoted(runtimeBinding.from)};`,
     format === "javascript" ? [
       "const __freezeGeneratedSchema = value => {",
       "  if (value !== null && typeof value === \"object\") {",
@@ -308,12 +327,12 @@ export function renderJsonSchemaModule(entries, options = {}) {
           // Parse strict JSON instead of embedding an object literal: properties
           // named "__proto__" remain real own JSON members, not prototype setters.
           // The emitted helper seals every nested schema, rule list and example.
-          ? `${internal ? "const" : "export const"} ${exportName} = __freezeGeneratedSchema(JSON.parse(${JSON.stringify(JSON.stringify(schema))}));`
-          : `${internal ? "const" : "export const"} ${exportName} = Object.freeze(${JSON.stringify(schema, null, 2)} as const);`,
+          ? declaration(exportName, `__freezeGeneratedSchema(JSON.parse(${JSON.stringify(JSON.stringify(schema))}))`, internal)
+          : declaration(exportName, `Object.freeze(${JSON.stringify(schema, null, 2)} as const)`, internal),
       "",
     ]),
     ...ordered.map((entry) => entry.runtimeName === undefined ? undefined : format === "declaration"
       ? `export declare const ${entry.runtimeName}: ReturnType<typeof ${runtimeBinding.name}${runtimeBinding.genericSchema === true ? `<typeof ${entry.exportName}>` : ""}>;`
-      : `export const ${entry.runtimeName} = ${runtimeBinding.name}(${entry.exportName}${runtimeReferences(entry).length === 0 ? "" : `, [${runtimeReferences(entry).join(", ")}]`});`),
+      : declaration(entry.runtimeName, `${binding(runtimeBinding.name)}(${binding(entry.exportName)}${runtimeReferences(entry).length === 0 ? "" : `, [${runtimeReferences(entry).map(binding).join(", ")}]`})`)),
   ].filter((line) => line !== undefined).join("\n");
 }
