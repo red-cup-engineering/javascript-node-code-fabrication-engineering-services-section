@@ -282,3 +282,42 @@ test("unresolved local mathematical references and unsafe pointer traversals fai
     }, { typeName:"Rejected" }), /unresolved local JSON Schema reference/u);
   }
 });
+
+test("generated bindings cannot capture the schema producer's intrinsics", async () => {
+  const { admit } = await import("@red-cup-engineering/signcell/type-system");
+  const { stripTypeScriptTypes } = await import("node:module");
+  const loadGenerated = (source, format) => import("data:text/javascript;base64," + Buffer.from(
+    format === "typescript" ? stripTypeScriptTypes(source) : source
+  ).toString("base64"));
+  const entries = [
+    { exportName: "Object", typeName: "ObjectSchema", schema: { $id: "https://example.test/object", title: "Object schema", description: "Nonempty input", type: "string", minLength: 1 } },
+    { exportName: "JSON", typeName: "JsonSchema", runtimeName: "globalThis", schema: { $id: "https://example.test/json", title: "Referenced schema", description: "Reference input", $ref: "https://example.test/object" } },
+    { exportName: "__schemaBinding0", typeName: "OccupiedName", schema: { type: "boolean" } },
+  ];
+  const runtimeBinding = { name: "defineSchemaType", from: import.meta.resolve("@red-cup-engineering/signcell/type-system/schema-type") };
+  for (const format of ["javascript", "typescript"]) {
+    const source = renderJsonSchemaModule(entries, { format, runtimeBinding });
+    assert.equal(source, renderJsonSchemaModule([...entries].reverse(), { format, runtimeBinding }));
+    const generated = await loadGenerated(source, format);
+    assert.deepEqual(generated.Object, entries[0].schema);
+    assert.deepEqual(generated.JSON, entries[1].schema);
+    assert.equal(generated.__schemaBinding0.type, "boolean");
+    assert.equal(Object.isFrozen(generated.Object), true);
+    assert.equal(admit(generated.globalThis, "retained").ok, true);
+    assert.equal(admit(generated.globalThis, "").ok, false);
+
+    for (const name of ["Object", "JSON"]) {
+      const aliasedSupplier = "data:text/javascript," + encodeURIComponent(`export { defineSchemaType as ${name} } from ${JSON.stringify(runtimeBinding.from)};`);
+      const withImport = renderJsonSchemaModule([{ exportName: "schema", typeName: "Schema", runtimeName: "received", schema: { $id: "https://example.test/number", title: "Number schema", description: "Numeric input", type: "number" } }], {
+        format, runtimeBinding: { name, from: aliasedSupplier },
+      });
+      const imported = await loadGenerated(withImport, format);
+      assert.equal(admit(imported.received, 3).ok, true);
+      assert.equal(admit(imported.received, "3").ok, false);
+      const withRuntime = renderJsonSchemaModule([{ exportName: "schema", typeName: "Schema", runtimeName: name, schema: { $id: "https://example.test/boolean", title: "Boolean schema", description: "Boolean input", type: "boolean" } }], { format, runtimeBinding });
+      const runtime = await loadGenerated(withRuntime, format);
+      assert.equal(admit(runtime[name], true).ok, true);
+      assert.equal(admit(runtime[name], 1).ok, false);
+    }
+  }
+});
