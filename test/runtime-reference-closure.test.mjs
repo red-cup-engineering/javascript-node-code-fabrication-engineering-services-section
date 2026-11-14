@@ -321,3 +321,29 @@ if (process.env.SPEC_ARCHITECTURE_SCHEMA_FILE) {
     /dynamic runtime JSON Schema reference requires qualified dynamic-scope resolution/u);
   });
 }
+
+test("JavaScript runtime schemas retain document-local definition namespaces", async () => {
+  const { admit } = await import("@red-cup-engineering/signcell/type-system");
+  const entries = ["string", "integer"].map((type, index) => ({
+    exportName: "schema" + index, typeName: "Value" + index,
+    runtimeName: "received" + index,
+    schema: {
+      $id: "https://example.test/local-definitions/" + index,
+      title: "Independent schema " + index, description: "Document-local references",
+      $defs: { Value: { type } }, $ref: "#/$defs/Value",
+    },
+  }));
+  const runtimeBinding = { name: "defineSchemaType",
+    from: import.meta.resolve("@red-cup-engineering/signcell/type-system/schema-type") };
+  const source = renderJsonSchemaModule(entries, { format: "javascript", runtimeBinding });
+  const received = await import("data:text/javascript;base64," + Buffer.from(source).toString("base64"));
+  assert.deepEqual(received.schema0, entries[0].schema);
+  assert.deepEqual(received.schema1, entries[1].schema);
+  assert.equal(admit(received.received0, "text").ok, true);
+  assert.equal(admit(received.received0, 42).ok, false);
+  assert.equal(admit(received.received1, 42).ok, true);
+  assert.equal(admit(received.received1, "text").ok, false);
+  for (const format of ["typescript", "declaration"])
+    assert.throws(() => renderJsonSchemaModule(entries, { format, runtimeBinding }),
+      /duplicate generated TypeScript type Value/u);
+});

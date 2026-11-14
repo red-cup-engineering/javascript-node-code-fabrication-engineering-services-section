@@ -247,7 +247,7 @@ export function renderJsonSchemaModule(entries, options = {}) {
     const typeName = identifier(entry.typeName, "typeName");
     const localAliases = isSchema(entry.schema.$defs) ? Object.keys(entry.schema.$defs).filter(legalIdentifier) : [];
     for (const type of [typeName, ...localAliases]) {
-      if (typeNames.has(type)) throw new TypeError(`duplicate generated TypeScript type ${type}`);
+      if (format !== "javascript" && typeNames.has(type)) throw new TypeError(`duplicate generated TypeScript type ${type}`);
       typeNames.add(type);
     }
     const aliases = entry.aliases === undefined ? [] : entry.aliases;
