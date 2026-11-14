@@ -31,7 +31,7 @@ async function providers() {
     ]);
   const ownerRequire = createRequire(pathToFileURL(join(originalRoot, 'package.json')));
   const { artifactId } = await import(pathToFileURL(ownerRequire.resolve(
-    '@red-cup-engineering/semiotic-eavt-engineering-services-section/identity')).href);
+    '@red-cup-engineering/semiotic-eavt-services-section/identity')).href);
   return { planEngineeringDesign, receiveEngineeringDesign,
     sourcesFixture, clausesSplitAcrossModels, sourceWithDeniedCondition, artifactId,
     renderJsonSchemaModule, admit,
@@ -647,7 +647,7 @@ async function factoryFixture(t, p, source, schema=factorySchema, input={argumen
   for(const file of [...original.sourceViews,...projection.packages[0].files])
     await writeFile(join(workspace,file.path),file.text);
   const generated=await import(pathToFileURL(join(workspace,'src/engineering-code-contracts.mjs')).href);
-  return {run:generated.checkedOperation0,original,projection,workspace};
+  return {run:generated.checkedOperation0,original,projection,workspace,generated};
 }
 
 test('factory contracts generate isolated ordered method lifecycles and detached JSON observations', {
@@ -655,7 +655,9 @@ test('factory contracts generate isolated ordered method lifecycles and detached
 }, async t => {
   const p=await providers();
   const source='export function retainA(start=0) { return {value:{count:start}, current(){return this.value;}, async add(n=1){await Promise.resolve();this.value.count+=n;return this.value;}, refuse(){throw new RangeError("unchanged");}, empty(){}, nil(){return null;} }; }';
-  const {run,original,projection,workspace}=await factoryFixture(t,p,source);
+  const {run,original,projection,workspace,generated}=await factoryFixture(t,p,source);
+  assert.equal(Object.hasOwn(generated.__inputSchema0,"x-javascript-factory"),false);
+  assert.deepEqual(generated.engineeringCodeSource.operations[0].interface.inputSchema,factorySchema);
   const call=(method,args=[],captureError=false)=>({method,arguments:args,...(captureError?{captureError}: {})});
   const input={arguments:[2],calls:[call('current'),call('add',[3]),call('refuse',[],true),call('current'),call('empty'),call('nil')]};
   const expected=[{status:'returned',value:{count:2}},{status:'returned',value:{count:5}},
@@ -886,6 +888,9 @@ test('original annotated LLD fabricates positional calls and bounded iterable an
   await assert.rejects(()=>generated.checkedOperation0([4,'overflow']),RangeError);
   assert.equal(globalThis.__codeIteratorClosed,true,'overflow closes the generator');
   delete globalThis.__codeIteratorClosed;
+  assert.equal(Object.hasOwn(generated.__inputSchema0,'x-javascript-arguments'),false);
+  assert.equal(Object.hasOwn(generated.__outputSchema0,'x-javascript-result'),false);
+  assert.equal(Object.hasOwn(generated.__outputSchema1,'x-javascript-result'),false);
   assert.equal(generated.engineeringCodeSource.operations[0].interface.inputSchema['x-javascript-arguments'],'positional');
   assert.equal(generated.engineeringCodeSource.operations[1].interface.outputSchema['x-javascript-result'],'map-entries');
   const env={...process.env};delete env.NODE_TEST_CONTEXT;
@@ -1000,4 +1005,15 @@ test('reference inert preflight preserves JSON array budgets and refuses inherit
   await assert.rejects(()=>run({arguments:[],calls:[step('echo',[['pair',1,empty]])]}),TypeError);
   assert.equal(globalThis.__spineTrap,false);
   delete globalThis.__spineTrap;
+});
+
+
+test('Code does not discard unhandled shape constraints with its own invocation annotations', {
+  skip: !originalRoot && 'requires exact original Specification owner',
+}, async t => {
+  const p=await providers();
+  const schema={...factorySchema,'x-unhandled-constraint':true};
+  await assert.rejects(() => factoryFixture(t,p,
+    'export function retainA() { return {current(){return 1;}}; }',schema),
+    /unsupported keyword.*x-unhandled-constraint/u);
 });
