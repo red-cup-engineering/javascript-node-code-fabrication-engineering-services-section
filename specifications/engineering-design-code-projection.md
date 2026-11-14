@@ -137,6 +137,14 @@ not JSON Schema validation keywords. Generic validators can ignore them; the
 source-bound Code adapter implements them. They remain part of the exact source,
 Design identity, readout and generated metadata, without a parallel API registry.
 
+After independently validating their direction, placement and policy, Code derives
+SignCell's structural validation view by removing only the three recognized root
+invocation keys. SignCell does not interpret JavaScript invocation annotations.
+The authored schemas remain complete and immutable in `engineeringCodeSource`
+and candidate operation metadata; the generated validation schemas are derived
+views, not byte-identical copies. All ordinary constraints and unknown keywords
+remain present. Nested invocation annotations still refuse before generation.
+
 - Input `x-javascript-arguments: "positional"` requires `type: "array"` and a
   safe integer `maxItems` from 0 through 64. That schema validates the complete
   argument list, then the adapter calls the original function with its elements

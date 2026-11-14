@@ -263,7 +263,11 @@ export function projectEngineeringDesignCode({ codeWorkReadout, cases } = {}) {
       independentCustomerAcceptance: "unreceived" };
     targets.forEach((target, index) => {
       for (const side of ["input", "output"]) {
-        const schema = nodeSchema(target.interface[side + "Schema"]);
+        // Invocation annotations are interpreted and checked by this Code owner,
+        // not by SignCell's structural shape vocabulary. Preserve the authored
+        // schema in source metadata; derive only its validation view here.
+        const schema = Object.fromEntries(Object.entries(nodeSchema(target.interface[side + "Schema"]))
+          .filter(([key]) => !["x-javascript-arguments", "x-javascript-result", "x-javascript-factory"].includes(key)));
         const $id = "https://schemas.561.group/engineering/unadmitted/" +
           niUriDigest(readout.designCarrierId) + "/" +
           encodeURIComponent(target.operationId) + "/" + side;

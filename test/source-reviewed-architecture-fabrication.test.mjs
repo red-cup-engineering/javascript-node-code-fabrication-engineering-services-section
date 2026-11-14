@@ -18,7 +18,7 @@ if (originalRoot) {
     ]);
     const ownerRequire = createRequire(pathToFileURL(join(originalRoot, "package.json")).href);
     const { artifactId } = await import(pathToFileURL(
-      ownerRequire.resolve("@red-cup-engineering/semiotic-eavt-engineering-services-section/identity")).href);
+      ownerRequire.resolve("@red-cup-engineering/semiotic-eavt-services-section/identity")).href);
     const sourceSchema = JSON.parse(readFileSync(
       join(originalRoot, "data/records/schema/architecture-description.schema.json"), "utf8"));
 
