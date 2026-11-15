@@ -21,7 +21,7 @@
     "test:native:programme": "node --experimental-import-meta-resolve --test test/native-code-programme.native.mjs"
   },
   "devDependencies": {
-    "@red-cup-engineering/jsnode-package-engineering-services-section": "^0.5.1-dev.4"
+    "@red-cup-engineering/jsnode-package-engineering-services-section": "^0.6.1"
   },
   "files": [
     "scripts",
