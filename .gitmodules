@@ -1,8 +1,0 @@
-[submodule "services/jsnode-package-engineering-services-section"]
-	path = services/jsnode-package-engineering-services-section
-	url = https://github.com/red-cup-engineering/jsnode-package-engineering-services-section.git
-	branch = main
-[submodule "services/jsnode-package-scaffold-service"]
-	path = services/jsnode-package-scaffold-service
-	url = https://github.com/red-cup-engineering/jsnode-package-scaffold-service.git
-	branch = main
