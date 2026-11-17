@@ -345,7 +345,7 @@ export function projectEngineeringDesignCode({ codeWorkReadout, cases } = {}) {
           ? ['import { isProxy as __factoryIsProxy } from "node:util/types";'] : []),
         renderJsonSchemaModule(entries, { format: "javascript",
           runtimeBinding: { name: "defineSchemaType",
-            from: "@red-cup-engineering/signcell/type-system/schema-type" } }),
+            from: "@red-cup-engineering/typed-content" } }),
         // Keep metadata in its own lexical/schema scope. Its private type name
         // must not collide with a perfectly valid authored operation $defs key.
         "export const engineeringCodeSource = (() => {",
