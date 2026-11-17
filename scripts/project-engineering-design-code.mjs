@@ -335,7 +335,7 @@ export function projectEngineeringDesignCode({ codeWorkReadout, cases } = {}) {
     let runtime;
     try {
       runtime = [
-        "import { admit } from \"@red-cup-engineering/signcell/type-system\";",
+        "import { admit } from \"@red-cup-engineering/typed-content\";",
         "import { readFile } from \"node:fs/promises\";",
         "import { createHash } from \"node:crypto\";",
         ...(targets.some(target => schemaAnnotation(target.interface.inputSchema, "x-javascript-factory"))
