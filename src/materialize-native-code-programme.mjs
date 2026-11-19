@@ -215,15 +215,15 @@ export async function materializeNativeCodeProgramme(input) {
     }
   }
   await receiveModule(entry);
-  const receipt = { kind: 'native-code-programme.received/v1', package: bill.package,
+  const record = { kind: 'native-code-programme.received/v1', package: bill.package,
     entry: 'node_modules/' + bill.package.name + '/' + input.entry, archives: receiving,
     edges: edgeReceiving, sourceFiles: source.length, sourceDigest: sha256(JSON.stringify(source)),
     providerInputs: bill.providerInputs, nodeProgram: input.nodeProgram,
     dependencyPolicy: 'received', applicationExecuted: false,
     staticImports: { modules: modules.size, edges: staticEdges, dynamicExpressions,
       scope: 'literal ESM imports of the selected programme entry; expressions remain runtime duties' } };
-  await fs.writeFile(path.join(output, 'native-code-receiving.json'), JSON.stringify(receipt, null, 2));
-  return receipt;
+  await fs.writeFile(path.join(output, 'native-code-receiving.json'), JSON.stringify(record, null, 2));
+  return record;
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   // CLI input is an original Guix-generated, credential-free descriptor.

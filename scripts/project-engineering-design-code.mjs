@@ -133,41 +133,41 @@ function validateInvocationAnnotations(schema, direction) {
  * @throws {TypeError} Before producing files on mismatched source, missing
  * normative coverage, unsupported carrier or fabricated Proof/Work standing.
  */
-export function projectEngineeringDesignCode({ codeWorkReadout, cases } = {}) {
-  if (!object(codeWorkReadout))
+export function projectEngineeringDesignCode({ codeWorkReadout: codeWorkReport, cases } = {}) {
+  if (!object(codeWorkReport))
     fail("CODE_SOURCE_NOT_RECEIVED", "an original LLD Code readout is required");
-  let readout, assays;
+  let report, checks;
   try {
-    readout = canonicalizeJson(codeWorkReadout, envelope).value;
-    assays = canonicalizeJson(cases, envelope).value;
+    report = canonicalizeJson(codeWorkReport, envelope).value;
+    checks = canonicalizeJson(cases, envelope).value;
   } catch {
     fail("CODE_WORK_UNBOUNDED", "bounded inert JSON source targets and independent assay cases are required");
   }
   // NI syntax is not authentication of the Design: only its original owner
   // re-receives that source. Its semantic name must never become a byte digest.
-  if (readout.type !== "EngineeringDesignCodeWorkReadout" ||
-      readout.version !== 1 || !isNiUri(readout.designCarrierId) ||
-      Object.hasOwn(readout, "designCarrierSha256") ||
-      readout.codeSnapshotScope !== "supplied-target-views-only" ||
-      readout.status !== "source-present-unassayed" ||
-      !Array.isArray(readout.discrepancies) || readout.discrepancies.length !== 0 ||
-      readout.originalDesignAdmitted !== false || readout.independentProof !== "unreceived" ||
-      readout.executableWork !== false || readout.codeApplied !== false ||
-      readout.beneficiaryReceived !== false ||
-      !Array.isArray(readout.sourceCut) || readout.sourceCut.length !== 4 ||
-      readout.sourceCut.some(source => !exact(source, ["kind", "digest"]) ||
+  if (report.type !== "EngineeringDesignCodeWorkReadout" ||
+      report.version !== 1 || !isNiUri(report.designCarrierId) ||
+      Object.hasOwn(report, "designCarrierSha256") ||
+      report.codeSnapshotScope !== "supplied-target-views-only" ||
+      report.status !== "source-present-unassayed" ||
+      !Array.isArray(report.discrepancies) || report.discrepancies.length !== 0 ||
+      report.originalDesignAdmitted !== false || report.independentProof !== "unreceived" ||
+      report.executableWork !== false || report.codeApplied !== false ||
+      report.beneficiaryReceived !== false ||
+      !Array.isArray(report.sourceCut) || report.sourceCut.length !== 4 ||
+      report.sourceCut.some(source => !exact(source, ["kind", "digest"]) ||
         !sourceKinds.has(source.kind) || !SHA.test(source.digest)) ||
-      new Set(readout.sourceCut.map(source => source.kind)).size !== 4 ||
-      !sourceVerificationInventory(readout.sourceVerification)) {
+      new Set(report.sourceCut.map(source => source.kind)).size !== 4 ||
+      !sourceVerificationInventory(report.sourceVerification)) {
     fail("CODE_SOURCE_NOT_RECEIVED", "a source-present original LLD Code readout is required, without fabricated Proof");
   }
-  if (!Array.isArray(readout.targets) || readout.targets.length === 0 ||
-      readout.targets.length > 64 ||
-      !Array.isArray(assays) || assays.length === 0 || assays.length > 256) {
+  if (!Array.isArray(report.targets) || report.targets.length === 0 ||
+      report.targets.length > 64 ||
+      !Array.isArray(checks) || checks.length === 0 || checks.length > 256) {
     fail("CODE_WORK_UNBOUNDED", "bounded source targets and independent JSON assay cases are required");
   }
   const byId = new Map(), owners = new Map();
-  for (const target of readout.targets) {
+  for (const target of report.targets) {
     if (!object(target) || !OP_ID.test(target.operationId) ||
         !OP_ID.test(target.componentId) ||
         typeof target.originalComponentOwner !== "string" ||
@@ -226,7 +226,7 @@ export function projectEngineeringDesignCode({ codeWorkReadout, cases } = {}) {
     owners.set(target.originalComponentOwner, group);
   }
   const names = new Set(), covered = new Map([...byId.keys()].map(id => [id, new Set()]));
-  for (const item of assays) {
+  for (const item of checks) {
     if (!exact(item, ["operationId", "requirementCellId", "name", "input", "expectedOutput", "throws"]) ||
         !OP_ID.test(item.operationId) || !OP_ID.test(item.requirementCellId) ||
         typeof item.name !== "string" || !item.name.trim() ||
@@ -256,9 +256,9 @@ export function projectEngineeringDesignCode({ codeWorkReadout, cases } = {}) {
     })));
     const metadata = { kind: "engineering.code-source-contract-candidate.v1",
       originalComponentOwner: owner,
-      designCarrierId: readout.designCarrierId,
-      sourceCut: readout.sourceCut, codeSnapshotScope: readout.codeSnapshotScope,
-      sourceVerification: readout.sourceVerification, operations,
+      designCarrierId: report.designCarrierId,
+      sourceCut: report.sourceCut, codeSnapshotScope: report.codeSnapshotScope,
+      sourceVerification: report.sourceVerification, operations,
       semanticProof: "unreceived", originalWorkAuthority: "unreceived",
       independentCustomerAcceptance: "unreceived" };
     targets.forEach((target, index) => {
@@ -269,7 +269,7 @@ export function projectEngineeringDesignCode({ codeWorkReadout, cases } = {}) {
         const schema = Object.fromEntries(Object.entries(nodeSchema(target.interface[side + "Schema"]))
           .filter(([key]) => !["x-javascript-arguments", "x-javascript-result", "x-javascript-factory"].includes(key)));
         const $id = "https://schemas.561.group/engineering/unadmitted/" +
-          niUriDigest(readout.designCarrierId) + "/" +
+          niUriDigest(report.designCarrierId) + "/" +
           encodeURIComponent(target.operationId) + "/" + side;
         entries.push({ exportName: "__" + side + "Schema" + index,
           typeName: (side === "input" ? "Input" : "Output") + index,
@@ -366,7 +366,7 @@ export function projectEngineeringDesignCode({ codeWorkReadout, cases } = {}) {
       "import * as contracts from \"../" + reservedPath + "\";",
     ];
     const indexById = new Map(targets.map((t, i) => [t.operationId, i]));
-    for (const c of [...assays].filter(c => indexById.has(c.operationId))
+    for (const c of [...checks].filter(c => indexById.has(c.operationId))
       .sort((a, b) => order(a.operationId, b.operationId) || order(a.name, b.name))) {
       const fn = "contracts.checkedOperation" + indexById.get(c.operationId);
       const title = c.operationId + ": " + c.requirementCellId + ": " + c.name;
@@ -392,9 +392,9 @@ export function projectEngineeringDesignCode({ codeWorkReadout, cases } = {}) {
   }
   return Object.freeze({
     type: "EngineeringDesignCodeCandidate", version: 1,
-    originalDesignId: readout.designCarrierId,
-    sourceCut: readout.sourceCut, codeSnapshotScope: readout.codeSnapshotScope,
-    sourceVerification: readout.sourceVerification,
+    originalDesignId: report.designCarrierId,
+    sourceCut: report.sourceCut, codeSnapshotScope: report.codeSnapshotScope,
+    sourceVerification: report.sourceVerification,
     status: "source-observed-code-projected", semanticProof: "unreceived",
     executableWork: false, codeApplied: false, beneficiaryReceived: false,
     independentAssayAuthority: "unverified-submitted-cases",
