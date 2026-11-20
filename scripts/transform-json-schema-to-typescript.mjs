@@ -208,7 +208,7 @@ export function renderJsonSchemaModule(entries, options = {}) {
   // shallow Object.freeze let an installed consumer rewrite conformance and
   // authorization claims while leaving the outer schema deceptively frozen.
   // This source-private emitted helper is shared by all generated JS entries.
-  const freezer = "__freezeGeneratedSchema";
+  const freezer = "deepFreeze";
   if (format === "javascript" && runtimeBinding?.name === freezer)
     throw new TypeError("runtimeBinding.name collides with generated schema freezer");
   const names = new Set([
@@ -292,15 +292,7 @@ export function renderJsonSchemaModule(entries, options = {}) {
   return [
     "/** Generated from specifications/*.schema.json. Do not edit. */",
     runtimeBinding === undefined ? undefined : `import ${format === "declaration" ? "type " : ""}{ ${runtimeBinding.name}${binding(runtimeBinding.name) === runtimeBinding.name ? "" : " as " + binding(runtimeBinding.name)} } from ${quoted(runtimeBinding.from)};`,
-    format === "javascript" ? [
-      "const __freezeGeneratedSchema = value => {",
-      "  if (value !== null && typeof value === \"object\") {",
-      "    for (const child of Object.values(value)) __freezeGeneratedSchema(child);",
-      "    Object.freeze(value);",
-      "  }",
-      "  return value;",
-      "};",
-    ].join("\n") : undefined,
+    format === "javascript" ? 'import { deepFreeze } from "@red-cup-engineering/signcell/values";' : undefined,
     ...ordered.flatMap(({ exportName, typeName, schema, internal }) => [
       format === "javascript" ? undefined : transformJsonSchemaToTypescript(schema, { typeName, references: ordered }),
       format === "declaration"
@@ -309,7 +301,7 @@ export function renderJsonSchemaModule(entries, options = {}) {
           // Parse strict JSON instead of embedding an object literal: properties
           // named "__proto__" remain real own JSON members, not prototype setters.
           // The emitted helper seals every nested schema, rule list and example.
-          ? declaration(exportName, `__freezeGeneratedSchema(JSON.parse(${JSON.stringify(JSON.stringify(schema))}))`, internal)
+          ? declaration(exportName, `deepFreeze(JSON.parse(${JSON.stringify(JSON.stringify(schema))}))`, internal)
           : declaration(exportName, `Object.freeze(${JSON.stringify(schema, null, 2)} as const)`, internal),
       "",
     ]),
