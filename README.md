@@ -453,3 +453,9 @@ repository effect, buyer receiving and settlement remain separate duties.
 The function expressly returns `semanticProof:"unreceived"`,
 `executableWork:false`, `codeApplied:false`, and
 `beneficiaryReceived:false`; passing functional tests cannot change them.
+
+## Regenerate a package’s design contracts
+
+`./synchronize-engineering-design-contracts` exports `synchronizeEngineeringDesignContracts({ root, carrier, check, generateTests })`. Supply the package directory and the relative path to its engineering design JSON. The operation checks that the specification, requirement and architecture agree with the sources in the admitted design. It binds the implementation’s digest, renders the specification to Markdown and projects the package’s contract module and tests.
+
+The operation returns the paths that differ. With `check: true` it compares without writing. Pass `generateTests: false` in packages such as Crucible that keep their own independent executable oracle at the test path. Parlor Kernel uses the default to regenerate its numerical acceptance cases.
