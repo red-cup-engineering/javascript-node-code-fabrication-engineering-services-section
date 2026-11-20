@@ -1,3 +1,4 @@
+import { sha256Hex } from "@red-cup-engineering/semiotic-content-address-system";
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
@@ -7,7 +8,7 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 const packageName = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/;
 const storeRoot = /^\/gnu\/store\/[a-z0-9]{32}-[^/]+$/;
 const sha512 = /^sha512-[A-Za-z0-9+/]{86}==$/;
-const sha256 = b => createHash('sha256').update(b).digest('hex');
+
 const own = (v, keys) => {
   if (!v || typeof v !== 'object' || Array.isArray(v) || Object.keys(v).sort().join() !== [...keys].sort().join())
     throw new TypeError('exact native Code input fields required');
@@ -80,7 +81,7 @@ async function sourceInventory(root) {
         const b = await fs.readFile(file);
         const after = await fs.lstat(file);
         if (s.ino !== after.ino || s.size !== after.size || s.mtimeMs !== after.mtimeMs) throw Error('native source changed');
-        files.push([name, b.length, sha256(b)]);
+        files.push([name, b.length, sha256Hex(b)]);
       } else throw Error('unsupported native source member');
     }
   }
@@ -217,7 +218,7 @@ export async function materializeNativeCodeProgramme(input) {
   await receiveModule(entry);
   const receipt = { kind: 'native-code-programme.received/v1', package: bill.package,
     entry: 'node_modules/' + bill.package.name + '/' + input.entry, archives: receiving,
-    edges: edgeReceiving, sourceFiles: source.length, sourceDigest: sha256(JSON.stringify(source)),
+    edges: edgeReceiving, sourceFiles: source.length, sourceDigest: sha256Hex(JSON.stringify(source)),
     providerInputs: bill.providerInputs, nodeProgram: input.nodeProgram,
     dependencyPolicy: 'received', applicationExecuted: false,
     staticImports: { modules: modules.size, edges: staticEdges, dynamicExpressions,

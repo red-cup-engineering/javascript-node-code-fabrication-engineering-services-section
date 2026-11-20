@@ -1,3 +1,4 @@
+import { compareText } from "@red-cup-engineering/semiotic-content-address-system";
 import { isRecord } from "@red-cup-engineering/signcell/values";
 /**
  * Project the original Specification owner's re-received LLD-to-Code readout
@@ -60,7 +61,7 @@ function importLocation(from, to) {
   return path.split("/").map(part => part === "." || part === ".." ?
     part : encodeURIComponent(part)).join("/");
 }
-const order = (a, b) => a < b ? -1 : a > b ? 1 : 0;
+
 // JSON data is not a JavaScript object literal: an own __proto__ key in
 // a literal changes its prototype instead of reaching the implementation.
 // Parse an escaped JSON string for every case value, including error cases.
@@ -248,8 +249,8 @@ export function projectEngineeringDesignCode({ codeWorkReadout, cases } = {}) {
   }
 
   const projected = [];
-  for (const [owner, group] of [...owners].sort(([a], [b]) => order(a, b))) {
-    const targets = [...group].sort((a, b) => order(a.operationId, b.operationId));
+  for (const [owner, group] of [...owners].sort(([a], [b]) => compareText(a, b))) {
+    const targets = [...group].sort((a, b) => compareText(a.operationId, b.operationId));
     const entries = [], wrappers = [];
     const operations = Object.freeze(targets.map((target, index) => Object.freeze({
       ...target, checkedExport: "checkedOperation" + index,
@@ -368,7 +369,7 @@ export function projectEngineeringDesignCode({ codeWorkReadout, cases } = {}) {
     ];
     const indexById = new Map(targets.map((t, i) => [t.operationId, i]));
     for (const c of [...assays].filter(c => indexById.has(c.operationId))
-      .sort((a, b) => order(a.operationId, b.operationId) || order(a.name, b.name))) {
+      .sort((a, b) => compareText(a.operationId, b.operationId) || compareText(a.name, b.name))) {
       const fn = "contracts.checkedOperation" + indexById.get(c.operationId);
       const title = c.operationId + ": " + c.requirementCellId + ": " + c.name;
       tests.push("test(" + JSON.stringify(title) + ", async () => {");
