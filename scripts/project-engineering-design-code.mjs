@@ -1,3 +1,4 @@
+import { sha256Hex } from "@red-cup-engineering/cryptographic-computer-data-engineering-services-section/integrity";
 import { compareText } from "@red-cup-engineering/semiotic-content-address-system";
 import { isRecord } from "@red-cup-engineering/signcell/values";
 /**
@@ -9,7 +10,7 @@ import { isRecord } from "@red-cup-engineering/signcell/values";
  * The original Design reader owns source-cut and HLD/LLD correspondence.
  * The original operating host owns isolated execution and final acceptance.
  */
-import { createHash } from "node:crypto";
+
 import { posix } from "node:path";
 import { isNiUri, niUriDigest } from "@red-cup-engineering/uri-engineering-services-section/ni-uri";
 import { canonicalizeJson, JSON_RESOURCE_ENVELOPE } from "@red-cup-engineering/json-engine/canonical-json";
@@ -24,7 +25,7 @@ const reservedPath = "src/engineering-code-contracts.mjs";
 const reservedTests = "test/engineering-code-contracts.test.mjs";
 
 const fail = (code, message) => { const error = new TypeError(message); error.code = code; throw error; };
-const sha = text => "sha256:" + createHash("sha256").update(text, "utf8").digest("hex");
+const sha = text => "sha256:" + sha256Hex(text);
 const exact = (value, keys) => isRecord(value) && Object.keys(value).length === keys.length &&
   keys.every(key => Object.hasOwn(value, key));
 // The JSON owner admits a bounded, detached, deeply frozen snapshot. A caller's
