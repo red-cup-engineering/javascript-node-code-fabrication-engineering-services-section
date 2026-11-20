@@ -1,3 +1,4 @@
+import { isRecord } from "@red-cup-engineering/signcell/values";
 /**
  * Project the original Specification owner's re-received LLD-to-Code readout
  * into executable, source-pinned Code adapters and independently authored tests.
@@ -20,10 +21,10 @@ const EXPORT_NAME = /^[A-Za-z_$][A-Za-z0-9_$]*$/u;
 const ALLOWED_ERRORS = new Set(["TypeError", "Error", "RangeError", "SyntaxError"]);
 const reservedPath = "src/engineering-code-contracts.mjs";
 const reservedTests = "test/engineering-code-contracts.test.mjs";
-const object = x => x !== null && typeof x === "object" && !Array.isArray(x);
+
 const fail = (code, message) => { const error = new TypeError(message); error.code = code; throw error; };
 const sha = text => "sha256:" + createHash("sha256").update(text, "utf8").digest("hex");
-const exact = (value, keys) => object(value) && Object.keys(value).length === keys.length &&
+const exact = (value, keys) => isRecord(value) && Object.keys(value).length === keys.length &&
   keys.every(key => Object.hasOwn(value, key));
 // The JSON owner admits a bounded, detached, deeply frozen snapshot. A caller's
 // later edits, accessors or toJSON hook cannot rewrite the source we projected.
@@ -45,7 +46,7 @@ function sourceVerificationInventory(value) {
     value.status === (value.missingClauseIds.length === 0
       ? "source-tests-declared-unverified" : "source-tests-missing");
 }
-const schemaAnnotation = (value, key) => object(value) && Object.hasOwn(value, key) ? value[key] : undefined;
+const schemaAnnotation = (value, key) => isRecord(value) && Object.hasOwn(value, key) ? value[key] : undefined;
 const nodeSchema = value => value === true ? {} : value === false ? { not: {} } : value;
 function targetPath(value) {
   return typeof value === "string" && value.startsWith("src/") && value.endsWith(".mjs") &&
@@ -72,7 +73,7 @@ function validateInvocationAnnotations(schema, direction) {
   const pending = [{ schema, root: true }];
   while (pending.length) {
     const { schema: current, root } = pending.pop();
-    if (!object(current)) continue;
+    if (!isRecord(current)) continue;
     const argumentsPresent = Object.hasOwn(current, argumentKey);
     const resultPresent = Object.hasOwn(current, resultKey);
     const factoryPresent = Object.hasOwn(current, factoryKey);
@@ -85,7 +86,7 @@ function validateInvocationAnnotations(schema, direction) {
     if (factoryPresent) {
       const policy = current[factoryKey];
       if (direction === 'output' || argumentsPresent || resultPresent || current.type !== 'object' ||
-          !object(policy) || Object.keys(policy).length !== (Object.hasOwn(policy, 'resultReferences') ? 4 : 3) ||
+          !isRecord(policy) || Object.keys(policy).length !== (Object.hasOwn(policy, 'resultReferences') ? 4 : 3) ||
           !['methods', 'maxCalls', 'maxArguments'].every(key => Object.hasOwn(policy, key)) ||
           !Array.isArray(policy.methods) || policy.methods.length < 1 || policy.methods.length > 32 ||
           new Set(policy.methods).size !== policy.methods.length ||
@@ -96,7 +97,7 @@ function validateInvocationAnnotations(schema, direction) {
         fail('CODE_INVOCATION_UNQUALIFIED', 'Invalid bounded JavaScript factory contract');
       if (Object.hasOwn(policy, 'resultReferences')) {
         const references = policy.resultReferences;
-        if (!object(references) || Object.keys(references).length !== 1 ||
+        if (!isRecord(references) || Object.keys(references).length !== 1 ||
             !Object.hasOwn(references, 'maxPathLength') ||
             !Number.isSafeInteger(references.maxPathLength) || references.maxPathLength < 0 || references.maxPathLength > 16)
           fail('CODE_INVOCATION_UNQUALIFIED', 'Invalid bounded result-reference policy');
@@ -120,7 +121,7 @@ function validateInvocationAnnotations(schema, direction) {
     for (const key of ['allOf', 'anyOf', 'oneOf', 'prefixItems'])
       if (Array.isArray(current[key])) current[key].forEach(add);
     for (const key of ['properties', 'patternProperties', '$defs', 'definitions', 'dependentSchemas'])
-      if (object(current[key])) Object.values(current[key]).forEach(add);
+      if (isRecord(current[key])) Object.values(current[key]).forEach(add);
   }
 }
 
@@ -134,7 +135,7 @@ function validateInvocationAnnotations(schema, direction) {
  * normative coverage, unsupported carrier or fabricated Proof/Work standing.
  */
 export function projectEngineeringDesignCode({ codeWorkReadout, cases } = {}) {
-  if (!object(codeWorkReadout))
+  if (!isRecord(codeWorkReadout))
     fail("CODE_SOURCE_NOT_RECEIVED", "an original LLD Code readout is required");
   let readout, assays;
   try {
@@ -168,7 +169,7 @@ export function projectEngineeringDesignCode({ codeWorkReadout, cases } = {}) {
   }
   const byId = new Map(), owners = new Map();
   for (const target of readout.targets) {
-    if (!object(target) || !OP_ID.test(target.operationId) ||
+    if (!isRecord(target) || !OP_ID.test(target.operationId) ||
         !OP_ID.test(target.componentId) ||
         typeof target.originalComponentOwner !== "string" ||
         !target.originalComponentOwner.trim() || !targetPath(target.module) ||
@@ -176,13 +177,13 @@ export function projectEngineeringDesignCode({ codeWorkReadout, cases } = {}) {
         target.sourceStatus !== "source-present-unassayed" ||
         !SHA.test(target.observedSha256) ||
         target.observedSha256 !== target.expectedSha256 ||
-        !object(target.interface) ||
-        ![true, false].includes(target.interface.inputSchema) && !object(target.interface.inputSchema) ||
-        ![true, false].includes(target.interface.outputSchema) && !object(target.interface.outputSchema) ||
-        !object(target.bindingObservation) ||
+        !isRecord(target.interface) ||
+        ![true, false].includes(target.interface.inputSchema) && !isRecord(target.interface.inputSchema) ||
+        ![true, false].includes(target.interface.outputSchema) && !isRecord(target.interface.outputSchema) ||
+        !isRecord(target.bindingObservation) ||
         !["observed", "unknown"].includes(target.bindingObservation.status) ||
         !Array.isArray(target.originalTrace) || target.originalTrace.length === 0 ||
-        !object(target.testObligations) || target.testObligations.status !== "unreceived" ||
+        !isRecord(target.testObligations) || target.testObligations.status !== "unreceived" ||
         !Array.isArray(target.testObligations.sourceVerification) ||
         byId.has(target.operationId) || target.module === reservedPath) {
       fail("CODE_TARGET_UNQUALIFIED", "every Code operation requires an exact source-bound target and unreceived normative obligations");
@@ -194,7 +195,7 @@ export function projectEngineeringDesignCode({ codeWorkReadout, cases } = {}) {
       fail('CODE_INVOCATION_UNQUALIFIED', 'Factory sequences already produce ordered JSON observations');
     const traced = new Set();
     for (const trace of target.originalTrace) {
-      if (!object(trace) || typeof trace.requirementCellId !== "string" ||
+      if (!isRecord(trace) || typeof trace.requirementCellId !== "string" ||
           !trace.requirementCellId || traced.has(trace.requirementCellId) ||
           !["held", "denied"].includes(trace.sourceTarget) ||
           !nonemptyStrings(trace.specificationClauseIds) ||

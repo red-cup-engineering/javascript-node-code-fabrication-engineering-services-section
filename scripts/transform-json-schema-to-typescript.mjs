@@ -1,3 +1,4 @@
+import { isRecord } from "@red-cup-engineering/signcell/values";
 /**
  * Project JSON Schema documents into TypeScript declarations.  The projection
  * intentionally omits constraints TypeScript cannot express; runtime
@@ -6,7 +7,7 @@
 
 import { parseJsonPointer, resolveJsonPointer } from "@red-cup-engineering/json-engine/resolve-json-pointer";
 
-const isSchema = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+
 
 // Exported names are emitted into TypeScript and/or executable JavaScript.
 // A textual identifier spelling is insufficient: keywords cannot be bindings.
@@ -52,7 +53,7 @@ function renderTuple(items, minimumItems, tail, root, references, base, active) 
   return `readonly [${prefix.join(", ")}${suffix}]`;
 }
 function resolvedBase(schema, inheritedBase = "") {
-  if (!isSchema(schema) || typeof schema.$id !== "string" || schema.$id === "") return inheritedBase;
+  if (!isRecord(schema) || typeof schema.$id !== "string" || schema.$id === "") return inheritedBase;
   try { return new URL(schema.$id, inheritedBase).href; } catch { return schema.$id; }
 }
 function resolveReference(reference, root, references, base = resolvedBase(root)) {
@@ -86,7 +87,7 @@ function assertCompleteRuntimeReferences(schema, references) {
     "patternProperties", "properties",
   ];
   const visit = (value, root, inheritedBase) => {
-    if (!isSchema(value) || seen.has(value)) return;
+    if (!isRecord(value) || seen.has(value)) return;
     seen.add(value);
     // $dynamicRef (2020-12) and $recursiveRef (2019-09) select their targets
     // using the runtime dynamic evaluation scope, not only a static $ref
@@ -103,7 +104,7 @@ function assertCompleteRuntimeReferences(schema, references) {
         : resolveJsonPointer(resolved.schema, resolved.fragment);
       // A pointer to an existing scalar, array or null is not a valid schema.
       // JSON Schema's two Boolean forms remain legitimate referenced targets.
-      if (target === undefined || (target !== true && target !== false && !isSchema(target)))
+      if (target === undefined || (target !== true && target !== false && !isRecord(target)))
         throw new TypeError("unresolved runtime JSON Schema reference: " + value.$ref +
           (target === undefined ? "" : " (target is not a schema)"));
       visit(target, resolved.schema, resolvedBase(resolved.schema));
@@ -113,7 +114,7 @@ function assertCompleteRuntimeReferences(schema, references) {
       if (Array.isArray(value[key])) for (const item of value[key]) visit(item, root, base);
     }
     for (const key of maps) {
-      if (isSchema(value[key]))
+      if (isRecord(value[key]))
         for (const item of Object.values(value[key])) visit(item, root, base);
     }
     if (Array.isArray(value.items))
@@ -125,7 +126,7 @@ function assertCompleteRuntimeReferences(schema, references) {
 function renderSchema(schema, root, references = [], inheritedBase = resolvedBase(root), active = new Set()) {
   if (schema === true) return "unknown";
   if (schema === false) return "never";
-  if (!isSchema(schema)) return "unknown";
+  if (!isRecord(schema)) return "unknown";
   // A reference cycle that has no named TypeScript alias is not representable
   // by recursive inline expansion. Refuse rather than emit 'unknown', recurse
   // forever or silently weaken a mathematical contract.
@@ -141,7 +142,7 @@ function renderSchema(schema, root, references = [], inheritedBase = resolvedBas
       if (resolved?.local) throw new TypeError("unresolved local JSON Schema reference: " + schema.$ref);
       return "unknown"; // Preserve documented lossy behavior for absent external schemas.
     }
-    if (resolved.local && isSchema(root.$defs)) {
+    if (resolved.local && isRecord(root.$defs)) {
       const parts = parseJsonPointer(resolved.fragment);
       if (parts.length === 2 && parts[0] === "$defs" && legalIdentifier(parts[1])) return parts[1];
     }
@@ -152,7 +153,7 @@ function renderSchema(schema, root, references = [], inheritedBase = resolvedBas
   if (Array.isArray(schema.enum)) return schema.enum.map(quoted).join(" | ") || "never";
   for (const keyword of ["anyOf", "oneOf"]) if (Array.isArray(schema[keyword])) return schema[keyword].map((member) => renderSchema(member, root, references, base, nextActive)).join(" | ") || "never";
   if (schema.type === "object") {
-    if (!isSchema(schema.properties)) return "Record<string, unknown>";
+    if (!isRecord(schema.properties)) return "Record<string, unknown>";
     const required = new Set(Array.isArray(schema.required) ? schema.required.filter((key) => typeof key === "string") : []);
     const properties = Object.entries(schema.properties).map(([key, value]) => `readonly ${quoted(key)}${required.has(key) ? "" : "?"}: ${renderSchema(value, root, references, base, nextActive)};`);
     return properties.length === 0 ? "{}" : `{ ${properties.join(" ")} }`;
@@ -171,11 +172,11 @@ function renderSchema(schema, root, references = [], inheritedBase = resolvedBas
 }
 
 export function transformJsonSchemaToTypescript(schema, options = {}) {
-  if (schema !== true && schema !== false && !isSchema(schema)) throw new TypeError("schema must be a JSON Schema object or boolean");
-  if (!isSchema(options)) throw new TypeError("options must be an object");
-  const typeName = identifier(options.typeName ?? (isSchema(schema) && typeof schema.title === "string" ? schema.title : "Schema"), "typeName");
+  if (schema !== true && schema !== false && !isRecord(schema)) throw new TypeError("schema must be a JSON Schema object or boolean");
+  if (!isRecord(options)) throw new TypeError("options must be an object");
+  const typeName = identifier(options.typeName ?? (isRecord(schema) && typeof schema.title === "string" ? schema.title : "Schema"), "typeName");
   const references = Array.isArray(options.references) ? options.references : [];
-  const definitions = isSchema(schema) && isSchema(schema.$defs) ? Object.entries(schema.$defs) : [];
+  const definitions = isRecord(schema) && isRecord(schema.$defs) ? Object.entries(schema.$defs) : [];
   // JSON Schema definition names are arbitrary JSON strings, including slashes
   // and tildes. Only safe identifiers can be TS aliases; the rest are inlined.
   const aliasDefinitions = definitions.filter(([name]) => legalIdentifier(name));
@@ -188,7 +189,7 @@ export function transformJsonSchemaToTypescript(schema, options = {}) {
 
 function schemaLiteralType(value) {
   if (Array.isArray(value)) return `readonly [${value.map(schemaLiteralType).join(", ")}]`;
-  if (isSchema(value)) return `{ ${Object.entries(value).map(([key, item]) => `readonly ${quoted(key)}: ${schemaLiteralType(item)};`).join(" ")} }`;
+  if (isRecord(value)) return `{ ${Object.entries(value).map(([key, item]) => `readonly ${quoted(key)}: ${schemaLiteralType(item)};`).join(" ")} }`;
   return quoted(value);
 }
 
@@ -196,11 +197,11 @@ function schemaLiteralType(value) {
  * The default TypeScript module remains available for existing generation consumers. */
 export function renderJsonSchemaModule(entries, options = {}) {
   if (!Array.isArray(entries) || entries.length === 0) throw new TypeError("entries must be a nonempty array");
-  if (!isSchema(options)) throw new TypeError("options must be an object");
+  if (!isRecord(options)) throw new TypeError("options must be an object");
   const format = options.format ?? "typescript";
   if (!["typescript", "javascript", "declaration"].includes(format)) throw new TypeError("format must be typescript, javascript, or declaration");
   const runtimeBinding = options.runtimeBinding === undefined ? undefined : options.runtimeBinding;
-  if (runtimeBinding !== undefined && (!isSchema(runtimeBinding) || typeof runtimeBinding.from !== "string" || runtimeBinding.from === ""))
+  if (runtimeBinding !== undefined && (!isRecord(runtimeBinding) || typeof runtimeBinding.from !== "string" || runtimeBinding.from === ""))
     throw new TypeError("runtimeBinding must name an import");
   if (runtimeBinding !== undefined) identifier(runtimeBinding.name, "runtimeBinding.name");
   // A generated JavaScript schema must preserve nested source constraints. A
@@ -216,7 +217,7 @@ export function renderJsonSchemaModule(entries, options = {}) {
   ]);
   const typeNames = new Set();
   const ordered = [...entries].map((entry) => {
-    if (!isSchema(entry) || !isSchema(entry.schema)) throw new TypeError("each entry must contain a schema object");
+    if (!isRecord(entry) || !isRecord(entry.schema)) throw new TypeError("each entry must contain a schema object");
     const exportName = identifier(entry.exportName, "exportName");
     if (names.has(exportName)) throw new TypeError(`duplicate generated JavaScript binding ${exportName}`);
     names.add(exportName);
@@ -226,7 +227,7 @@ export function renderJsonSchemaModule(entries, options = {}) {
       names.add(runtimeName);
     }
     const typeName = identifier(entry.typeName, "typeName");
-    const localAliases = isSchema(entry.schema.$defs) ? Object.keys(entry.schema.$defs).filter(legalIdentifier) : [];
+    const localAliases = isRecord(entry.schema.$defs) ? Object.keys(entry.schema.$defs).filter(legalIdentifier) : [];
     for (const type of [typeName, ...localAliases]) {
       if (format !== "javascript" && typeNames.has(type)) throw new TypeError(`duplicate generated TypeScript type ${type}`);
       typeNames.add(type);
@@ -265,7 +266,7 @@ export function renderJsonSchemaModule(entries, options = {}) {
     const found = new Set();
     const visitedEntries = new Set();
     const visit = (value, root, inheritedBase) => {
-      if (!isSchema(value)) return;
+      if (!isRecord(value)) return;
       const base = resolvedBase(value, inheritedBase);
       if (typeof value.$ref === "string") {
         const candidate = resolveReference(value.$ref, root, ordered, base)?.entry;
@@ -276,9 +277,9 @@ export function renderJsonSchemaModule(entries, options = {}) {
       }
       for (const key of ["additionalItems", "additionalProperties", "contains", "contentSchema", "else", "if", "items", "not", "propertyNames", "then", "unevaluatedItems", "unevaluatedProperties"]) visit(value[key], root, base);
       for (const key of ["allOf", "anyOf", "oneOf", "prefixItems"]) if (Array.isArray(value[key])) for (const child of value[key]) visit(child, root, base);
-      for (const key of ["$defs", "definitions", "dependentSchemas", "patternProperties", "properties"]) if (isSchema(value[key])) for (const child of Object.values(value[key])) visit(child, root, base);
+      for (const key of ["$defs", "definitions", "dependentSchemas", "patternProperties", "properties"]) if (isRecord(value[key])) for (const child of Object.values(value[key])) visit(child, root, base);
       if (Array.isArray(value.items)) for (const child of value.items) visit(child, root, base);
-      if (isSchema(value.dependencies)) for (const child of Object.values(value.dependencies)) visit(child, root, base);
+      if (isRecord(value.dependencies)) for (const child of Object.values(value.dependencies)) visit(child, root, base);
     };
     const visitEntry = (candidate) => {
       if (visitedEntries.has(candidate)) return;
