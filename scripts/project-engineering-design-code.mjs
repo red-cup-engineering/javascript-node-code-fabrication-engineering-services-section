@@ -352,7 +352,7 @@ export function projectEngineeringDesignCode({ codeWorkReadout, cases } = {}) {
         "export const engineeringCodeSource = (() => {",
         renderJsonSchemaModule([{ exportName: "__engineeringCodeSourceSchema",
           typeName: "EngineeringCodeSource", schema: { const: metadata }, internal: true }],
-        { format: "javascript" }),
+        { format: "javascript", importFreezer: false }),
         "  return __engineeringCodeSourceSchema.const;",
         "})();",
         ...wrappers,

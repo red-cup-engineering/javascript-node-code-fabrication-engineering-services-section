@@ -204,16 +204,9 @@ export function renderJsonSchemaModule(entries, options = {}) {
   if (runtimeBinding !== undefined && (!isRecord(runtimeBinding) || typeof runtimeBinding.from !== "string" || runtimeBinding.from === ""))
     throw new TypeError("runtimeBinding must name an import");
   if (runtimeBinding !== undefined) identifier(runtimeBinding.name, "runtimeBinding.name");
-  // A generated JavaScript schema must preserve nested source constraints. A
-  // shallow Object.freeze let an installed consumer rewrite conformance and
-  // authorization claims while leaving the outer schema deceptively frozen.
-  // This source-private emitted helper is shared by all generated JS entries.
   const freezer = "deepFreeze";
-  if (format === "javascript" && runtimeBinding?.name === freezer)
-    throw new TypeError("runtimeBinding.name collides with generated schema freezer");
   const names = new Set([
     ...(runtimeBinding === undefined ? [] : [runtimeBinding.name]),
-    ...(format === "javascript" ? [freezer] : []),
   ]);
   const typeNames = new Set();
   const ordered = [...entries].map((entry) => {
@@ -250,7 +243,7 @@ export function renderJsonSchemaModule(entries, options = {}) {
   const occupied = new Set([...names, ...typeNames]);
   let bindingIndex = 0;
   if (format !== "declaration") for (const name of [...names].sort()) {
-    if (!["Object", "JSON"].includes(name)) continue;
+    if (!["Object", "JSON", ...(format === "javascript" ? [freezer] : [])].includes(name)) continue;
     let local;
     do { local = "__schemaBinding" + bindingIndex++; } while (occupied.has(local));
     occupied.add(local);
@@ -292,7 +285,7 @@ export function renderJsonSchemaModule(entries, options = {}) {
   return [
     "/** Generated from specifications/*.schema.json. Do not edit. */",
     runtimeBinding === undefined ? undefined : `import ${format === "declaration" ? "type " : ""}{ ${runtimeBinding.name}${binding(runtimeBinding.name) === runtimeBinding.name ? "" : " as " + binding(runtimeBinding.name)} } from ${quoted(runtimeBinding.from)};`,
-    format === "javascript" ? 'import { deepFreeze } from "@red-cup-engineering/signcell/values";' : undefined,
+    format === "javascript" && options.importFreezer !== false ? 'import { deepFreeze } from "@red-cup-engineering/signcell/values";' : undefined,
     ...ordered.flatMap(({ exportName, typeName, schema, internal }) => [
       format === "javascript" ? undefined : transformJsonSchemaToTypescript(schema, { typeName, references: ordered }),
       format === "declaration"
