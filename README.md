@@ -458,4 +458,4 @@ The function expressly returns `semanticProof:"unreceived"`,
 
 `./synchronize-engineering-design-contracts` exports `synchronizeEngineeringDesignContracts({ root, carrier, check, generateTests })`. Supply the package directory and the relative path to its engineering design JSON. The operation checks that the specification, requirement and architecture agree with the sources in the admitted design. It binds the implementation’s digest, renders the specification to Markdown and projects the package’s contract module and tests.
 
-The operation returns the paths that differ. With `check: true` it compares without writing. Pass `generateTests: false` in packages such as Crucible that keep their own independent executable oracle at the test path. Parlor Kernel uses the default to regenerate its numerical acceptance cases.
+The operation returns the paths that differ. With `check: true` it compares without writing. Crucible and Parlor Kernel both generate native tests from their specification cases.
