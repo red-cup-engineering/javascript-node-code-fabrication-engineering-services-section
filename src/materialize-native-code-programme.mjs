@@ -1,3 +1,4 @@
+import { canonicalJson } from "@red-cup-engineering/json-engine/canonical-json";
 import { protocolDigestBase64 } from "@red-cup-engineering/cryptographic-computer-data-engineering-services-section/hash";
 import { sha256Hex } from "@red-cup-engineering/semiotic-content-address-system";
 import fs from 'node:fs/promises';
@@ -218,7 +219,7 @@ export async function buildNodePackage(input) {
   await validateModuleImports(entry);
   const receipt = { kind: 'native-code-programme.received/v1', package: bill.package,
     entry: 'node_modules/' + bill.package.name + '/' + input.entry, archives: verifiedArchives,
-    edges: verifiedDependencies, sourceFiles: source.length, sourceDigest: sha256Hex(JSON.stringify(source)),
+    edges: verifiedDependencies, sourceFiles: source.length, sourceDigest: sha256Hex(canonicalJson(source)),
     providerInputs: bill.providerInputs, nodeProgram: input.nodeProgram,
     dependencyPolicy: 'received', applicationExecuted: false,
     staticImports: { modules: modules.size, edges: staticEdges, dynamicExpressions,
