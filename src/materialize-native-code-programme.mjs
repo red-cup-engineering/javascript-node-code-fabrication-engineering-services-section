@@ -1,7 +1,7 @@
+import { protocolDigestBase64 } from "@red-cup-engineering/cryptographic-computer-data-engineering-services-section/hash";
 import { sha256Hex } from "@red-cup-engineering/semiotic-content-address-system";
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
 import { createRequire, isBuiltin } from 'node:module';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 
@@ -109,7 +109,7 @@ export async function buildNodePackage(input) {
     const stat = await regular(a.archive);
     if (stat.size > 67108864) throw Error('native archive bound');
     const bytes = await fs.readFile(a.archive);
-    if ('sha512-' + createHash('sha512').update(bytes).digest('base64') !== a.integrity) throw Error('native archive integrity differs');
+    if ('sha512-' + protocolDigestBase64("sha512", bytes) !== a.integrity) throw Error('native archive integrity differs');
     const root = path.join(output, '.native', encodeURIComponent(identity(a)));
     await fs.mkdir(root, { recursive: true });
     let count = 0, unpacked = 0;

@@ -1,8 +1,8 @@
+import { sha256Digest } from "@red-cup-engineering/semiotic-content-address-system";
 import { deepStrictEqual } from 'node:assert';
 import { lstat, readFile, realpath } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { writeTextAtomically } from '@red-cup-engineering/computer-file-engineering-services-section/atomic-text';
-import { sha256Digest } from '@red-cup-engineering/cryptographic-computer-data-engineering-services-section/integrity';
 import { readEngineeringCodeWork } from '@red-cup-engineering/engineering-content-engineering-services-section/engineering-design';
 import {
   renderSpecificationMarkdown, validateSpecificationRecord,

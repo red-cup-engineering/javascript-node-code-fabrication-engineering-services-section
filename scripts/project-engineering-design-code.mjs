@@ -1,5 +1,4 @@
-import { sha256Hex } from "@red-cup-engineering/cryptographic-computer-data-engineering-services-section/integrity";
-import { compareText } from "@red-cup-engineering/semiotic-content-address-system";
+import { compareText, isNiUri, niUriDigest, sha256Digest } from "@red-cup-engineering/semiotic-content-address-system";
 import { isRecord } from "@red-cup-engineering/signcell/values";
 /**
  * Project the original Specification owner's re-received LLD-to-Code readout
@@ -12,7 +11,7 @@ import { isRecord } from "@red-cup-engineering/signcell/values";
  */
 
 import { posix } from "node:path";
-import { isNiUri, niUriDigest } from "@red-cup-engineering/uri-engineering-services-section/ni-uri";
+
 import { canonicalizeJson, JSON_RESOURCE_ENVELOPE } from "@red-cup-engineering/json-engine/canonical-json";
 import { renderJsonSchemaModule } from "./transform-json-schema-to-typescript.mjs";
 import { renderFactoryInvocation } from "./render-factory-invocation.mjs";
@@ -25,7 +24,6 @@ const reservedPath = "src/engineering-code-contracts.mjs";
 const reservedTests = "test/engineering-code-contracts.test.mjs";
 
 const fail = (code, message) => { const error = new TypeError(message); error.code = code; throw error; };
-const sha = text => "sha256:" + sha256Hex(text);
 const exact = (value, keys) => isRecord(value) && Object.keys(value).length === keys.length &&
   keys.every(key => Object.hasOwn(value, key));
 // The JSON owner admits a bounded, detached, deeply frozen snapshot. A caller's
@@ -321,7 +319,7 @@ export function projectEngineeringDesignCode({ codeWorkReadout, cases } = {}) {
           JSON.stringify("Design input disagreement: " + label) + ");",
         "  const location = new URL(" + JSON.stringify(location) + ", import.meta.url);",
         "  const bytes = await readFile(location);",
-        "  const actual = \"sha256:\" + createHash(\"sha256\").update(bytes).digest(\"hex\");",
+        "  const actual = sha256Digest(bytes);",
         "  if (actual !== " + JSON.stringify(target.observedSha256) + ") throw new Error(" +
           JSON.stringify("Design source revision disagreement: " + label) + ");",
         "  const module = await import(location.href + \"?source=\" + actual.slice(7));",
@@ -340,7 +338,7 @@ export function projectEngineeringDesignCode({ codeWorkReadout, cases } = {}) {
       runtime = [
         "import { admit } from \"@red-cup-engineering/typed-content\";",
         "import { readFile } from \"node:fs/promises\";",
-        "import { createHash } from \"node:crypto\";",
+        "import { sha256Digest } from \"@red-cup-engineering/semiotic-content-address-system\";",
         ...(targets.some(target => schemaAnnotation(target.interface.inputSchema, "x-javascript-factory"))
           ? ['import { canonicalizeJson as __factoryCanonicalize, JSON_RESOURCE_ENVELOPE as __factoryJsonBounds } from "@red-cup-engineering/json-engine/canonical-json";',
             'import { isPromise as __factoryIsPromise } from "node:util/types";'] : []),
@@ -386,7 +384,7 @@ export function projectEngineeringDesignCode({ codeWorkReadout, cases } = {}) {
     const files = [
       { path: reservedPath, text: runtime },
       { path: reservedTests, text: tests.join("\n") + "\n" },
-    ].map(item => Object.freeze({ ...item, digest: sha(item.text) }));
+    ].map(item => Object.freeze({ ...item, digest: sha256Digest(item.text) }));
     projected.push(Object.freeze({
       originalComponentOwner: owner,
       operations,
